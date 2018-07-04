@@ -1,0 +1,303 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+vector.mli</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="vector.mli"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(** Vectors (aka resizable arrays, growing arrays, dynamic arrays, etc.)</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    This module implements arrays that automatically expand as necessary.</span>
+<span class="Ccomment">    Its implementation uses a traditional array and replaces it with a</span>
+<span class="Ccomment">    larger array when needed (and elements are copied from the old array</span>
+<span class="Ccomment">    to the new one). The current implementation doubles the capacity when</span>
+<span class="Ccomment">    growing the array (and shrinks it whenever the number of elements</span>
+<span class="Ccomment">    comes to one fourth of the capacity).</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    The unused part of the internal array is filled with a dummy value,</span>
+<span class="Ccomment">    which is user-provided at creation time (and referred to below</span>
+<span class="Ccomment">    as ``the dummy value''). Consequently, vectors do not retain pointers</span>
+<span class="Ccomment">    to values that are not used anymore after a shrinking.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    Vectors provide an efficient implementation of stacks, with a</span>
+<span class="Ccomment">    better locality of reference than list-based implementations (such</span>
+<span class="Ccomment">    as standard library {!Stack}). A stack interface is provided,</span>
+<span class="Ccomment">    similar to that of {!Stack} (though {!Vector.push} have arguments</span>
+<span class="Ccomment">    in the other way round). Inserting [n] elements with</span>
+<span class="Ccomment">    {!Vector.push} has overall complexity O(n) i.e. each insertion has</span>
+<span class="Ccomment">    amortized constant time complexity. *)</span>
+
+<span class="Ctype">type</span> 'a t
+  <span class="Ccomment">(** The polymorphic type of vectors.</span>
+<span class="Ccomment">      This is a mutable data type. *)</span>
+
+
+<span class="Ccomment">(** {2 Operations proper to vectors, or with a different type and/or</span>
+<span class="Ccomment">    semantics than those of module [Array]} *)</span>
+
+<span class="Cval">val</span> make: int <span class="Cnonalphakeyword">-&gt;</span> dummy:'a <span class="Cnonalphakeyword">-&gt;</span> 'a t
+<span class="Ccomment">(** [Vector.make n dummy] returns a fresh vector of length [n].</span>
+<span class="Ccomment">   All the elements of this new vector are initially</span>
+<span class="Ccomment">   physically equal to [dummy] (in the sense of the [==] predicate).</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">   Raise [Invalid_argument] if [n &lt; 0] or [n &gt; Sys.max_array_length].</span>
+<span class="Ccomment">   If the value of [dummy] is a floating-point number, then the maximum</span>
+<span class="Ccomment">   size is only [Sys.max_array_length / 2].*)</span>
+
+<span class="Cval">val</span> create: dummy:'a <span class="Cnonalphakeyword">-&gt;</span> 'a t
+<span class="Ccomment">(** [Vector.create dummy] returns a fresh vector of length [0]. *)</span>
+
+<span class="Cval">val</span> init: int <span class="Cnonalphakeyword">-&gt;</span> dummy:'a <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span>int <span class="Cnonalphakeyword">-&gt;</span> 'a<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t
+<span class="Ccomment">(** [Vector.init n f] returns a fresh vector of length [n],</span>
+<span class="Ccomment">   with element number [i] initialized to the result of [f i].</span>
+<span class="Ccomment">   In other terms, [Vector.init n f] tabulates the results of [f]</span>
+<span class="Ccomment">   applied to the integers [0] to [n-1].</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">   Raise [Invalid_argument] if [n &lt; 0] or [n &gt; Sys.max_array_length].</span>
+<span class="Ccomment">   If the return type of [f] is [float], then the maximum</span>
+<span class="Ccomment">   size is only [Sys.max_array_length / 2].*)</span>
+
+<span class="Cval">val</span> resize: 'a t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [Vector.resize a n] sets the length of vector [a] to [n].</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">   The elements that are no longer part of the vector, if any, are</span>
+<span class="Ccomment">   internally replaced by the dummy value of vector [a], so that they</span>
+<span class="Ccomment">   can be garbage collected when possible.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">   Raise [Invalid_argument] if [n &lt; 0] or [n &gt; Sys.max_array_length]. *)</span>
+
+
+<span class="Ccomment">(** {2 Stack interface}</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    Contrary to standard library's {Stack}, module {Vector} uses less space</span>
+<span class="Ccomment">    (between N and 2N words, instead of 3N) and has better data locality. *)</span>
+
+<span class="Cval">val</span> push: 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [Vector.push a x] appends [x] at the end of vector [a], i.e.,</span>
+<span class="Ccomment">    increases the size of [a] by one and stores [x] at the rightmost</span>
+<span class="Ccomment">    position.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    Note: the order of the arguments is not that of {!Stack.push}. *)</span>
+
+<span class="Cexception">exception</span> <span class="Cconstructor">Empty</span>
+<span class="Ccomment">(** Raised when {!Vector.pop} or {!Vector.top} is applied to an empty vector. *)</span>
+
+<span class="Cval">val</span> pop: 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a
+<span class="Ccomment">(** [Vector.pop a] removes and returns the rightmost element in vector [a],</span>
+<span class="Ccomment">   or raises [Empty] if the stack is empty. *)</span>
+
+<span class="Cval">val</span> top: 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a
+<span class="Ccomment">(** [Vector.top a] returns the rightmost element in vector [a],</span>
+<span class="Ccomment">   or raises [Empty] if the vector is empty. *)</span>
+
+<span class="Cval">val</span> clear: 'a t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** Discard all elements from a vector.</span>
+<span class="Ccomment">    This is equivalent to setting the size to 0 with [resize]. *)</span>
+
+<span class="Cval">val</span> is_empty: 'a t <span class="Cnonalphakeyword">-&gt;</span> bool
+<span class="Ccomment">(** Return [true] if the given vector is empty, [false] otherwise. *)</span>
+
+
+<span class="Ccomment">(** {2 Array interface} *)</span>
+
+<span class="Cval">val</span> length: 'a t <span class="Cnonalphakeyword">-&gt;</span> int
+<span class="Ccomment">(** Return the length (number of elements) of the given vector.</span>
+<span class="Ccomment">    Note: the number of memory words occupiedby the vector can be larger. *)</span>
+
+<span class="Cval">val</span> get: 'a t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> 'a
+<span class="Ccomment">(** [Vector.get a n] returns the element number [n] of vector [a].</span>
+<span class="Ccomment">    The first element has number [0]. The last element has number</span>
+<span class="Ccomment">    [Vector.length a - 1].</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    Raise [Invalid_argument "Vector.get"]</span>
+<span class="Ccomment">    if [n] is outside the range [0] to [Vector.length a - 1]. *)</span>
+
+<span class="Cval">val</span> set: 'a t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [Vector.set a n x] modifies vector [a] in place, replacing</span>
+<span class="Ccomment">   element number [n] with [x].</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">   Raise [Invalid_argument "Vector.set"]</span>
+<span class="Ccomment">   if [n] is outside the range 0 to [Vector.length a - 1]. *)</span>
+
+<span class="Cval">val</span> append: 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [Vector.append a1 a2] appends the elements of vector [a2] to the end</span>
+<span class="Ccomment">    of vector [a1].</span>
+<span class="Ccomment">    It works correctly even if [a1] and [a2] are the same vector. *)</span>
+
+<span class="Cval">val</span> sub: 'a t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> 'a t
+<span class="Ccomment">(** [Vector.sub a start len] returns a fresh vector of length [len], containing</span>
+<span class="Ccomment">    the elements number [start] to [start + len - 1] of vector [a]. *)</span>
+
+<span class="Cval">val</span> copy: 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t
+<span class="Ccomment">(** [Vector.copy a] returns a copy of [a], that is, a fresh vector containing</span>
+<span class="Ccomment">    the same elements as [a]. *)</span>
+
+<span class="Cval">val</span> fill : 'a t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [Vector.fill a ofs len x] modifies the vector [a] in place,</span>
+<span class="Ccomment">    storing [x] in elements number [ofs] to [ofs + len - 1].</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    Raise [Invalid_argument "Vector.fill"] if [ofs] and [len] do not</span>
+<span class="Ccomment">    designate a valid subvector of [a]. *)</span>
+
+<span class="Cval">val</span> blit : 'a t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [Vector.blit v1 o1 v2 o2 len] copies [len] elements</span>
+<span class="Ccomment">   from vector [v1], starting at element number [o1], to vector [v2],</span>
+<span class="Ccomment">   starting at element number [o2]. It works correctly even if</span>
+<span class="Ccomment">   [v1] and [v2] are the same vector, and the source and</span>
+<span class="Ccomment">   destination chunks overlap.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">   Raise [Invalid_argument "Vector.blit"] if [o1] and [len] do not</span>
+<span class="Ccomment">   designate a valid subvector of [v1], or if [o2] and [len] do not</span>
+<span class="Ccomment">   designate a valid subvector of [v2]. *)</span>
+
+<span class="Cval">val</span> to_list : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a list
+<span class="Ccomment">(** [Vector.to_list a] returns the list of all the elements of [a]. *)</span>
+
+<span class="Cval">val</span> of_list: dummy:'a <span class="Cnonalphakeyword">-&gt;</span> 'a list <span class="Cnonalphakeyword">-&gt;</span> 'a t
+<span class="Ccomment">(** [Vector.of_list dummy l] returns a fresh vector containing the elements</span>
+<span class="Ccomment">    of [l]. *)</span>
+
+<span class="Cval">val</span> to_array: 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a array
+<span class="Ccomment">(** [Vector.to_array a] returns the array of all the elements of [a]. *)</span>
+
+<span class="Cval">val</span> of_array: dummy:'a <span class="Cnonalphakeyword">-&gt;</span> 'a array <span class="Cnonalphakeyword">-&gt;</span> 'a t
+<span class="Ccomment">(** [Vector.of_array dummy a] returns a fresh vector containing the elements</span>
+<span class="Ccomment">    of [a]. *)</span>
+
+<span class="Cval">val</span> iter : <span class="Cnonalphakeyword">(</span>'a <span class="Cnonalphakeyword">-&gt;</span> unit<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [Vector.iter f a] applies function [f] in turn to all</span>
+<span class="Ccomment">   the elements of [a].  It is equivalent to</span>
+<span class="Ccomment">   [f (get a 0); f (get a 1); ...; f (get a (Vector.length a - 1))]. *)</span>
+
+<span class="Cval">val</span> map : <span class="Cnonalphakeyword">(</span>'a <span class="Cnonalphakeyword">-&gt;</span> 'b<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> 'b t
+<span class="Ccomment">(** [Vector.map f a] applies function [f] to all the elements of [a],</span>
+<span class="Ccomment">   and builds a fresh vector with the results returned by [f].</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">   Note: the dummy value of the returned vector is obtained by applying</span>
+<span class="Ccomment">   [f] to the dummy value of [a]. If this is not what you want,</span>
+<span class="Ccomment">   first create a new vector and then fill it with the value</span>
+<span class="Ccomment">   [f (get a 0)], [f (get a 1)], etc. *)</span>
+
+<span class="Cval">val</span> iteri : <span class="Cnonalphakeyword">(</span>int <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> unit<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** Same as {!Vector.iter}, but the</span>
+<span class="Ccomment">   function is applied to the index of the element as first argument,</span>
+<span class="Ccomment">   and the element itself as second argument. *)</span>
+
+<span class="Cval">val</span> mapi : <span class="Cnonalphakeyword">(</span>int <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> 'b<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> 'b t
+<span class="Ccomment">(** Same as {!Vector.map}, but the</span>
+<span class="Ccomment">   function is applied to the index of the element as first argument,</span>
+<span class="Ccomment">   and the element itself as second argument.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">   Note: the dummy value of the returned vector is obtained by applying</span>
+<span class="Ccomment">   [f 0] to the dummy value of [a].  *)</span>
+
+<span class="Cval">val</span> fold_left : <span class="Cnonalphakeyword">(</span>'a <span class="Cnonalphakeyword">-&gt;</span> 'b <span class="Cnonalphakeyword">-&gt;</span> 'a<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> 'b t <span class="Cnonalphakeyword">-&gt;</span> 'a
+<span class="Ccomment">(** [Vector.fold_left f x a] computes</span>
+<span class="Ccomment">   [f (... (f (f x (get a 0)) (get a 1)) ...) (get a (n-1))],</span>
+<span class="Ccomment">   where [n] is the length of the vector [a]. *)</span>
+
+<span class="Cval">val</span> fold_right : <span class="Cnonalphakeyword">(</span>'b <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> 'a<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'b t <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> 'a
+<span class="Ccomment">(** [Vector.fold_right f a x] computes</span>
+<span class="Ccomment">   [f (get a 0) (f (get a 1) ( ... (f (get a (n-1)) x) ...))],</span>
+<span class="Ccomment">   where [n] is the length of the vector [a]. *)</span>
+
+
+<span class="Ccomment">(** {2 Only if you know what you are doing...} *)</span>
+
+<span class="Cval">val</span> unsafe_get : 'a t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> 'a
+<span class="Cval">val</span> unsafe_set : 'a t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> unit
+
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

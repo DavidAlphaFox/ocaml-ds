@@ -1,0 +1,342 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+rope.mli</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="rope.mli"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(** Ropes are persistent data structures for long sequences.  Elements</span>
+<span class="Ccomment">    are of any type. When elements are characters, ropes thus implement</span>
+<span class="Ccomment">    strings (with an interface identical to that of [String]) but with</span>
+<span class="Ccomment">    far better performances w.r.t. concatenation of substring</span>
+<span class="Ccomment">    extraction, especially on very large strings. *)</span>
+
+<span class="Ccomment">(** Ropes are naturally implemented as a functor turning a (possibly</span>
+<span class="Ccomment">    inefficient) data structure of ``strings'' into another (more</span>
+<span class="Ccomment">    efficient) data structure with the same signature. *)</span>
+
+<span class="Cexception">exception</span> <span class="Cconstructor">Out_of_bounds</span>
+
+<span class="Ccomment">(** Input signature for the functor *)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">STRING</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+
+  <span class="Ctype">type</span> t
+
+  <span class="Ctype">type</span> char
+
+  <span class="Cval">val</span> length : t <span class="Cnonalphakeyword">-&gt;</span> int
+
+  <span class="Cval">val</span> empty : t
+
+  <span class="Cval">val</span> singleton : char <span class="Cnonalphakeyword">-&gt;</span> t
+    
+  <span class="Cval">val</span> append : t <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> t
+
+  <span class="Cval">val</span> get : t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> char
+
+  <span class="Cval">val</span> sub : t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> t
+    <span class="Ccomment">(** [sub t ofs len] extracts the substring of length [len] at offset</span>
+<span class="Ccomment">        [ofs], that is [t[ofs..ofs+len-1]].</span>
+<span class="Ccomment">        Will always be called with a valid range. *)</span>
+    
+  <span class="Cval">val</span> iter_range : <span class="Cnonalphakeyword">(</span>char <span class="Cnonalphakeyword">-&gt;</span> unit<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> unit
+    <span class="Ccomment">(** [iter_range f t ofs len] successively iterates [f] over characters</span>
+<span class="Ccomment">        of [t] at offsets [ofs], [ofs+1], ..., [ofs+len-1], in this order.</span>
+<span class="Ccomment">        Will always be called with a valid range. *)</span>
+
+  <span class="Cval">val</span> print : <span class="Cconstructor">Format</span><span class="Cnonalphakeyword">.</span>formatter <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> unit
+
+<span class="Cend">end</span>
+
+<span class="Ccomment">(** Output signature of the functor. Note that it extends signature</span>
+<span class="Ccomment">    [STRING] and thus functor [Make] below can be iterated several</span>
+<span class="Ccomment">    times. *)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">ROPE</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+
+  <span class="Cinclude">include</span> <span class="Cconstructor">STRING</span>
+
+  <span class="Cval">val</span> set : t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> char <span class="Cnonalphakeyword">-&gt;</span> t
+    <span class="Ccomment">(** [set t i c] returns a new rope identical to [t],</span>
+<span class="Ccomment">        apart character [i] which is set to [c].</span>
+<span class="Ccomment"></span>        <span class="Ccomment">Raises [Out_of_bounds] if [i &lt; 0 || i &gt;= length t].</span>
+<span class="Ccomment">        It is more equivalent to (but more efficient than) </span>
+<span class="Ccomment">        [sub t 0 i ++ singleton c ++ sub t (i+1) (length t-i-1)] *)</span>
+
+  <span class="Cval">val</span> delete : t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> t
+    <span class="Ccomment">(** [delete t i] returns a new rope obtained by removing character [i]</span>
+<span class="Ccomment">        in [t]. Raises [Out_of_bounds] if [i &lt; 0 || i &gt;= length t].</span>
+<span class="Ccomment">        It is more equivalent to (but more efficient than)</span>
+<span class="Ccomment">        [sub t 0 i ++ sub t (i + 1) (length t - i - 1)] *)</span>
+
+  <span class="Cval">val</span> insert_char : t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> char <span class="Cnonalphakeyword">-&gt;</span> t
+    <span class="Ccomment">(** [insert t i c] returns a new rope resulting from the insertion of </span>
+<span class="Ccomment">        character [c] at position [i] in [t], that right before character [i].</span>
+<span class="Ccomment"></span>        <span class="Ccomment">Raises [Out_of_bounds] if [i &lt; 0 || i &gt; length t].</span>
+<span class="Ccomment">        It is more equivalent to (but more efficient than)</span>
+<span class="Ccomment">        [sub t 0 i ++ singleton c ++ sub t i (length t - i)] *)</span>
+
+  <span class="Cval">val</span> insert : t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> t
+    <span class="Ccomment">(** [insert t i r] returns a new rope resulting from the insertion</span>
+<span class="Ccomment">        of rope [r] at position [i] in [t].</span>
+<span class="Ccomment"></span>        <span class="Ccomment">Raises [Out_of_bounds] if [i &lt; 0 || i &gt; length t].</span>
+<span class="Ccomment">        It is more equivalent to (but more efficient than)</span>
+<span class="Ccomment">        [sub t 0 i ++ r ++ sub t i (length t - i)] *)</span>
+
+  <span class="Ccomment">(** Cursors are persistent data structures to navigate within ropes.</span>
+<span class="Ccomment">      When several operations are to be performed locally on a rope</span>
+<span class="Ccomment">      (such as local deletions, insertions or even simple accesses),</span>
+<span class="Ccomment">      then the use of cursors can be more efficient than the use of</span>
+<span class="Ccomment">      rope operations. </span>
+<span class="Ccomment">      It is convenient to see the cursor as placed between two characters,</span>
+<span class="Ccomment">      so that a rope of length [n] has [n+1] cursor positions. *)</span>
+
+  <span class="Cmodule">module</span> <span class="Cconstructor">Cursor</span> : <span class="Csig">sig</span>
+
+    <span class="Ctype">type</span> cursor
+
+    <span class="Cval">val</span> create : t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> cursor
+      <span class="Ccomment">(** [create t i] returns a cursor placed before character [i] of rope </span>
+<span class="Ccomment">          [t]. Raises [Out_of_bounds] is [i &lt; 0 || i &gt; length t].</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  Note that [i = length t] is a valid argument, resulting in a cursor</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  placed right after the last character of the rope (i.e. at the</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  end of the rope). *)</span>
+      
+    <span class="Cval">val</span> position : cursor <span class="Cnonalphakeyword">-&gt;</span> int
+      <span class="Ccomment">(** [position c] returns the position of cursor [c] in its rope. *)</span>
+      
+    <span class="Cval">val</span> to_rope : cursor <span class="Cnonalphakeyword">-&gt;</span> t
+      <span class="Ccomment">(** [to_rope c] returns the rope corresponding to cursor [c]. *)</span>
+      
+    <span class="Cval">val</span> move_forward : cursor <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> cursor
+      <span class="Ccomment">(** [move_forward c n] moves cursor [c] [n] characters forward.</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  Raises [Invalid_argument] if [n &lt; 0]. </span>
+<span class="Ccomment"></span>        <span class="Ccomment">  Raises [Out_of_bounds] if it moves the cursor beyond the end of</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  the rope. *)</span>
+      
+    <span class="Cval">val</span> move_backward : cursor <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> cursor
+      <span class="Ccomment">(** [move_backward c n] moves cursor [c] [n] characters</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  backward.  Raises [Invalid_argument] if [n &lt; 0].  Raises</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  [Out_of_bounds] if it moves the cursor beyond the start of</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  the rope. *)</span>
+
+    <span class="Cval">val</span> move : cursor <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> cursor
+      <span class="Ccomment">(** [move c n] moves cursor [c] [n] characters away from its current</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  location, relatively to the sign of [n] (i.e. forward if [n &gt; 0] and</span>
+<span class="Ccomment">          backward if [n &lt; 0]). Raises [Out_of_bounds] if it moves the cursor</span>
+<span class="Ccomment">          beyond the start or the end of the rope. *)</span>
+
+    <span class="Cval">val</span> get : cursor <span class="Cnonalphakeyword">-&gt;</span> char
+      <span class="Ccomment">(** [get c] returns the character right after cursor</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  [c].  Raises [Out_of_bounds] if the cursor is located at the</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  end of the rope. *)</span>
+      
+    <span class="Cval">val</span> set : cursor <span class="Cnonalphakeyword">-&gt;</span> char <span class="Cnonalphakeyword">-&gt;</span> cursor
+      <span class="Ccomment">(** [set c x] returns a new cursor identical to [c] apart from</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  the character right after the cursor position, which is set</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  to [x].  Raises [Out_of_bounds] if the cursor is located at</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  the end of the rope. *)</span>
+
+    <span class="Cval">val</span> insert_char : cursor <span class="Cnonalphakeyword">-&gt;</span> char <span class="Cnonalphakeyword">-&gt;</span> cursor
+      <span class="Ccomment">(** [insert_char c x] returns a new cursor obtained from [c] by</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  inserting character [x] at the cursor position. The new</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  cursor is located right before the newly inserted character</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  (i.e. at the same absolute position in the rope). *)</span>
+
+    <span class="Cval">val</span> insert : cursor <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> cursor
+      <span class="Ccomment">(** [insert c r] is similar to [insert_char] but inserts a rope [r] at</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  the cursor point instead of a character. *)</span>
+
+<span class="Ccomment">(* Not Yet Implemented</span>
+<span class="Ccomment">    val delete : cursor -&gt; cursor</span>
+<span class="Ccomment">      (** [delete c] deletes the character right after the cursor location.</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  Raises [Out_of_bounds] if the cursor is located at the end of the </span>
+<span class="Ccomment"></span>        <span class="Ccomment">  rope. *)</span>
+<span class="Ccomment">*)</span>
+
+    <span class="Cval">val</span> print : <span class="Cconstructor">Format</span><span class="Cnonalphakeyword">.</span>formatter <span class="Cnonalphakeyword">-&gt;</span> cursor <span class="Cnonalphakeyword">-&gt;</span> unit
+      <span class="Ccomment">(** [print fmt c] prints cursor [c] on formatter [fmt], as a string</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  ["abc...|def..."] where ["abc..."] is the portion of the rope</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  before the cursor position and ["def..."] the portion after. *)</span>
+      
+  <span class="Cend">end</span>
+
+<span class="Cend">end</span>
+
+<span class="Ccomment">(** The functor to build ropes, turning an implemention of strings [S]</span>
+<span class="Ccomment">    into an implemention of ropes.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    It is controlled by two parameters: </span>
+<span class="Ccomment">    - [small_length] is the maximal length under which we perform</span>
+<span class="Ccomment">    concatenation of flat strings, i.e. when two ropes of length at most</span>
+<span class="Ccomment">    [small_length] are concatenated, then the corresponding flat string is</span>
+<span class="Ccomment">    built. </span>
+<span class="Ccomment">    - [maximal_height] is the threshold for rebalancing: when a rope has</span>
+<span class="Ccomment">    height at least [maximal_height] it is then rebalanced; setting </span>
+<span class="Ccomment">    [small_length] to [max_int] will result in ropes that are never </span>
+<span class="Ccomment">    rebalanced (which is perfectly fine in many applications).</span>
+<span class="Ccomment">*)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">CONTROL</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+
+  <span class="Cval">val</span> small_length : int
+
+  <span class="Cval">val</span> maximal_height : int
+
+<span class="Cend">end</span> 
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Make</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">S</span> : <span class="Cconstructor">STRING</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">C</span> : <span class="Cconstructor">CONTROL</span><span class="Cnonalphakeyword">)</span> : <span class="Csig">sig</span>
+
+  <span class="Cinclude">include</span> <span class="Cconstructor">ROPE</span> <span class="Cwith">with</span> <span class="Ctype">type</span> char <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>char
+
+  <span class="Cval">val</span> of_string : <span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>t <span class="Cnonalphakeyword">-&gt;</span> t
+
+<span class="Cend">end</span>
+
+
+<span class="Ccomment">(** Instance: usual strings (i.e. with [type char = Char.t]) is a</span>
+<span class="Ccomment">    particular instance of functor [Make] above, which is directly</span>
+<span class="Ccomment">    provided here as module [S] *)</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">S</span> : <span class="Csig">sig</span>
+  
+  <span class="Cinclude">include</span> <span class="Cconstructor">ROPE</span> <span class="Cwith">with</span> <span class="Ctype">type</span> char <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Char</span><span class="Cnonalphakeyword">.</span>t
+
+  <span class="Cval">val</span> of_string : string <span class="Cnonalphakeyword">-&gt;</span> t
+
+<span class="Cend">end</span>
+
+
+<span class="Ccomment">(** Another instance: ropes with function leaves. This allows to have</span>
+<span class="Ccomment">    pieces of the rope represented as a function (instead of a flat</span>
+<span class="Ccomment">    string). This is convenient to represent large strings such as</span>
+<span class="Ccomment">    files on disk. *)</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">SF</span> : <span class="Csig">sig</span>
+  
+  <span class="Cinclude">include</span> <span class="Cconstructor">ROPE</span> <span class="Cwith">with</span> <span class="Ctype">type</span> char <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Char</span><span class="Cnonalphakeyword">.</span>t
+
+  <span class="Cval">val</span> of_string : string <span class="Cnonalphakeyword">-&gt;</span> t
+
+  <span class="Cval">val</span> of_function : int <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span>int <span class="Cnonalphakeyword">-&gt;</span> char<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> t
+
+<span class="Cend">end</span>
+
+
+<span class="Ccomment">(** Elements of ropes can be of any type, of course. In that case,</span>
+<span class="Ccomment">    they must rather be seen as arrays instead of strings. The</span>
+<span class="Ccomment">    following functor builds ropes for a given (printable) type of</span>
+<span class="Ccomment">    elements (using arrays internally for flat strings). *)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">PrintableType</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span> 
+  <span class="Ctype">type</span> t
+  <span class="Cval">val</span> print : <span class="Cconstructor">Format</span><span class="Cnonalphakeyword">.</span>formatter <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> unit 
+<span class="Cend">end</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">MakeArray</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">X</span> : <span class="Cconstructor">PrintableType</span><span class="Cnonalphakeyword">)</span> : <span class="Csig">sig</span>  
+
+  <span class="Cinclude">include</span> <span class="Cconstructor">ROPE</span> <span class="Cwith">with</span> <span class="Ctype">type</span> char <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t
+
+  <span class="Cval">val</span> of_array : <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t array <span class="Cnonalphakeyword">-&gt;</span> t
+
+  <span class="Cval">val</span> create : int <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t <span class="Cnonalphakeyword">-&gt;</span> t
+
+  <span class="Cval">val</span> init : int <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span>int <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> t
+
+<span class="Cend">end</span>
+
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

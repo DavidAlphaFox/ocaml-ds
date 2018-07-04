@@ -1,0 +1,382 @@
+<html><body>
+<pre><font color="990000">(**************************************************************************)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  Copyright (C) Jean-Christophe Filliatre                               *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is free software; you can redistribute it and/or        *)</font>
+<font color="990000">(*  modify it under the terms of the GNU Library General Public           *)</font>
+<font color="990000">(*  License version 2, with the special exception on linking              *)</font>
+<font color="990000">(*  described in file LICENSE.                                            *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is distributed in the hope that it will be useful,      *)</font>
+<font color="990000">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</font>
+<font color="990000">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(**************************************************************************)</font>
+
+<font color="990000">(*p \usepackage{url}</font>
+<font color="990000">    \def\currentmodule{Koda-Ruskey (\today)} *)</font>
+
+<font color="990000">(*S Intro. </font>
+<font color="990000">    This program implements the Koda-Ruskey algorithm for generating all</font>
+<font color="990000">    ideals of a given forest poset \char091{\sl Journal of</font>
+<font color="990000">    Algorithms\/ \bf 15} (1993), 324--340\char093. </font>
+<font color="990000"> </font>
+<font color="990000">    It was inspired by two implementations of this algorithm by </font>
+<font color="990000">    D.~E.~Knuth (available at </font>
+<font color="990000">    \url{http://www-cs-staff.Stanford.EDU/~knuth/programs.html#Gray}).</font>
+<font color="990000">    This implementation demonstrates the adequacy of a functional </font>
+<font color="990000">    programming language for this particular algorithm. Indeed, it has </font>
+<font color="990000">    a very nice and concise implementation using higher-order functions. </font>
+<font color="990000">    (The algorithm itself, given in section~\ref{algo}, is only 9 lines </font>
+<font color="990000">    long). *)</font>
+
+<font color="990000">(*s Trees and forests. In a given forest, the [n] nodes are numbered</font>
+<font color="990000">    from 0 to [n-1] according to a postfix traversal. *)</font>
+
+<font color="green">type</font> tree  = <font color="0033cc">Node</font> <font color="green">of</font> int * forest 
+<font color="green">and</font> forest = tree list
+
+<font color="990000">(*s From/to nested parentheses. There is a one-to-one mapping between</font>
+<font color="990000">    forests and nested parentheses, where each pair of parentheses is</font>
+<font color="990000">    the child of the immediatly enclosing pair of parentheses. *)</font>
+
+<font color="green">let</font> from_paren s =
+  <font color="green">let</font> <font color="green">rec</font> parse stack i = parser
+    <font color="77aaaa">|</font> [< '<font color="aa4444">'('</font>; st >] -> 
+        <font color="990000">(* we push a new forest on top of stack *)</font>
+	parse ([] :: stack) i st
+    <font color="77aaaa">|</font> [< '<font color="aa4444">')'</font>; st >] ->
+        <font color="990000">(* we make a node with the forest [f1] on top of stack *)</font>
+	(<font color="77aaaa">match</font> stack <font color="77aaaa">with</font>
+	   <font color="77aaaa">|</font> f1 :: f2 :: s -> 
+	       <font color="green">let</font> t = <font color="0033cc">Node</font> (i, <font color="0033cc">List</font>.rev f1) <font color="green">in</font>
+	       parse ((t :: f2) :: s) (i + 1) st
+	   <font color="77aaaa">|</font> _ -> failwith <font color="aa4444">"unbalanced parenthesis"</font>)
+    <font color="77aaaa">|</font> [< >] -> 
+	<font color="990000">(* end of input: there must be exactly one forest on top of stack *)</font>
+	(<font color="77aaaa">match</font> stack <font color="77aaaa">with</font>
+	   <font color="77aaaa">|</font> [f] -> <font color="0033cc">List</font>.rev f
+	   <font color="77aaaa">|</font> _ -> failwith <font color="aa4444">"unclosed parenthesis"</font>)
+  <font color="green">in</font>
+  parse [[]] 0 (<font color="0033cc">Stream</font>.of_string s)
+
+<font color="cc9900">open</font> <font color="0033cc">Printf</font>
+
+<font color="green">let</font> <font color="green">rec</font> print_tree (<font color="0033cc">Node</font> (_, f)) =
+  <font color="aa4444">"("</font> ^ print_forest f ^ <font color="aa4444">")"</font>
+<font color="green">and</font> print_forest = <font color="green">function</font>
+  <font color="77aaaa">|</font> [] -> <font color="aa4444">""</font>
+  <font color="77aaaa">|</font> t :: f -> print_tree t ^ print_forest f
+
+<font color="990000">(* \newpage *)</font>
+<font color="990000">(*s Nice rendering with dot. We append all the ideals in a single {\tt dot}</font>
+<font color="990000">    file ["tree.dot"]. Bits are given as an array [bits] of zeros and ones,</font>
+<font color="990000">    and nodes are displayed in white or grey accordingly. (Each ideal</font>
+<font color="990000">    goes on a separate page; thus stepping from page to page gives</font>
+<font color="990000">    a nice animation.) *)</font>
+
+<font color="green">let</font> cout = open_out <font color="aa4444">"tree.dot"</font>
+
+<font color="green">let</font> to_dot f bits =
+  fprintf cout <font color="aa4444">"digraph g {\n"</font>;
+  <font color="green">let</font> <font color="green">rec</font> print_tree (<font color="0033cc">Node</font> (i, f)) = 
+    <font color="green">let</font> color = <font color="77aaaa">if</font> bits.(i) == 0 <font color="77aaaa">then</font> <font color="aa4444">""</font> <font color="77aaaa">else</font> <font color="aa4444">"[style=filled]"</font> <font color="green">in</font>
+    fprintf cout <font color="aa4444">"b%d %s;\n"</font> i color;
+    <font color="0033cc">List</font>.iter (<font color="green">fun</font> (<font color="0033cc">Node</font> (j, _)) -> fprintf cout <font color="aa4444">"b%d -> b%d;\n"</font> i j) f;
+    print_forest f
+  <font color="green">and</font> print_forest f =
+    <font color="0033cc">List</font>.iter print_tree f
+  <font color="green">in</font>
+  print_forest f;
+  fprintf cout <font color="aa4444">"}\n"</font>
+
+<font color="990000">(*s Size. *)</font>
+
+<font color="green">let</font> <font color="green">rec</font> tree_size (<font color="0033cc">Node</font> (_,f)) = succ (forest_size f)
+
+<font color="green">and</font> forest_size f = <font color="0033cc">List</font>.fold_left (<font color="green">fun</font> s t -> s + tree_size t) 0 f
+
+<font color="990000">(*s Command line options. *)</font>
+
+<font color="green">let</font> display = ref true
+<font color="green">let</font> dot = ref false
+
+<font color="990000">(*S Purely functional implementation. *)</font>
+
+<font color="green">type</font> state = int array * string
+
+<font color="green">type</font> computation = state -> state
+
+<font color="green">let</font> create f = (<font color="0033cc">Array</font>.create (forest_size f) 0, <font color="aa4444">""</font>)
+
+<font color="green">let</font> update i v (t, d) = <font color="green">let</font> t' = <font color="0033cc">Array</font>.copy t <font color="green">in</font> t'.(i) <- v; (t', d)
+
+<font color="green">let</font> get i (t, _) = t.(i)
+
+<font color="green">let</font> msg m ((t, d) <font color="green">as</font> s) = <font color="77aaaa">if</font> !display <font color="77aaaa">then</font> (t, d ^ m ^ <font color="aa4444">"\n"</font>) <font color="77aaaa">else</font> s
+
+<font color="green">let</font> print (t, d) = 
+  (t, (<font color="0033cc">Array</font>.fold_left (<font color="green">fun</font> d b -> d ^ string_of_int b) d t) ^ <font color="aa4444">"\n"</font>)
+
+<font color="green">let</font> (++) f g s = g (f s)
+
+<font color="green">let</font> ideals0 f =
+  <font color="green">let</font> <font color="green">rec</font> loop_f k f s = <font color="77aaaa">match</font> f <font color="77aaaa">with</font>
+    <font color="77aaaa">|</font> [] -> k s
+    <font color="77aaaa">|</font> t :: f -> loop_t (loop_f k f) t s
+  <font color="green">and</font> loop_t k (<font color="0033cc">Node</font> (i,f)) s =
+    <font color="77aaaa">if</font> get i s == 0 <font color="77aaaa">then</font> 
+      (k ++ update i 1 ++ loop_f k f) s
+    <font color="77aaaa">else</font> 
+      (loop_f k f ++ update i 0 ++ k) s
+  <font color="green">in</font>
+  <font color="green">let</font> s = create f <font color="green">in</font>
+  <font color="green">let</font> s = 
+    msg (sprintf <font color="aa4444">"Bitstrings generated from \"%s\":"</font> (print_forest f)) s <font color="green">in</font>
+  <font color="green">let</font> s = loop_f print f s <font color="green">in</font>
+  <font color="green">let</font> s = msg <font color="aa4444">"... and now we generate them in reverse:"</font> s <font color="green">in</font>
+  <font color="green">let</font> s = loop_f print f s <font color="green">in</font>
+  <font color="77aaaa">if</font> !display <font color="77aaaa">then</font> print_string (snd s)
+
+<font color="990000">(* \newpage *)</font>
+<font color="990000">(*S Koda-Ruskey algorithm. \label{algo}</font>
+<font color="990000">    The function [ideals] generates all ideals</font>
+<font color="990000">    of a given forest, starting from $00\cdots0$ (all zeros). Then it</font>
+<font color="990000">    generates the patterns again, in reverse order.</font>
+<font color="990000"></font>
+<font color="990000">    The code works as follows: [loop_f k f] generates all the ideals</font>
+<font color="990000">    of a given forest [f] and [loop_t k t] all the ideals of a given</font>
+<font color="990000">    tree [t].  In both case, the function [k] is to be called in</font>
+<font color="990000">    between the computation steps. Both functions [loop_f] and</font>
+<font color="990000">    [loop_t] can generate the patterns in both ways, depending on the</font>
+<font color="990000">    state of the bits when called. The main call is on [loop_f], with</font>
+<font color="990000">    an ``empty'' function [k].</font>
+<font color="990000"></font>
+<font color="990000">    If for instance [loop_f] is called on a forest $[t_1;t_2]$, it</font>
+<font color="990000">    will call itself recursively on $[t_2]$ with a continuation [k]</font>
+<font color="990000">    which calls [loop_t] on $t_1$. Therefore, all patterns will be</font>
+<font color="990000">    generated for $t_1$ each time a progress is made in the generation</font>
+<font color="990000">    of patterns for $t_2$.</font>
+<font color="990000"></font>
+<font color="990000">    [loop_t] tests the bit of the node to determine in which way</font>
+<font color="990000">    patterns have to be generated. If zero, we know that all bits</font>
+<font color="990000">    below are zeros; thus we call [k], we set the bit to one and we</font>
+<font color="990000">    call [loop_f] on the children with the same continuation [k].  If</font>
+<font color="990000">    one, we know that the patterns have to be generated in reverse</font>
+<font color="990000">    order; thus we do the converse: we call [loop_f] on the children,</font>
+<font color="990000">    resulting with all children being set to zero, we set the node to</font>
+<font color="990000">    zero and we call [k]. *)</font>
+
+<font color="green">let</font> ideals f =
+  <font color="green">let</font> n = forest_size f <font color="green">in</font>
+  <font color="green">let</font> bits = <font color="0033cc">Array</font>.create n 0 <font color="green">in</font>
+  <font color="green">let</font> dump () = <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> n - 1 <font color="77aaaa">do</font> printf <font color="aa4444">"%d"</font> bits.(i) <font color="77aaaa">done</font>; printf <font color="aa4444">"\n"</font> <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> loop_f k = <font color="green">function</font>
+    <font color="77aaaa">|</font> [] -> k ()
+    <font color="77aaaa">|</font> t :: f -> loop_t (<font color="green">fun</font> () -> loop_f k f) t
+  <font color="green">and</font> loop_t k (<font color="0033cc">Node</font> (i,f)) =
+    <font color="77aaaa">if</font> bits.(i) == 0 <font color="77aaaa">then</font> <font color="990099">begin</font>
+      k (); bits.(i) <- 1; loop_f k f
+    <font color="990099">end</font> <font color="77aaaa">else</font> <font color="990099">begin</font>
+      loop_f k f; bits.(i) <- 0; k ()
+    <font color="990099">end</font>
+  <font color="green">in</font>
+  <font color="green">let</font> k0 () = <font color="77aaaa">if</font> !display <font color="77aaaa">then</font> dump (); <font color="77aaaa">if</font> !dot <font color="77aaaa">then</font> to_dot f bits <font color="green">in</font>
+  <font color="77aaaa">if</font> !display <font color="77aaaa">then</font> 
+    printf <font color="aa4444">"Bitstrings generated from \"%s\":\n"</font> (print_forest f);
+  loop_f k0 f;
+  <font color="77aaaa">if</font> !display <font color="77aaaa">then</font> printf <font color="aa4444">"... and now we generate them in reverse:\n"</font>; 
+  loop_f k0 f
+
+<font color="990000">(* \newpage *)</font>
+<font color="990000">(*S A better implementation. The above code is nice but is actually building</font>
+<font color="990000">    the same closures many times. Indeed, we build the same closure each</font>
+<font color="990000">    time we traverse the same tree or the same forest. The following code</font>
+<font color="990000">    factorizes this closure construction. </font>
+<font color="990000"></font>
+<font color="990000">    Functions [loop_f] and [loop_t]</font>
+<font color="990000">    now return a function, of type [unit->unit], which generates the patterns.</font>
+<font color="990000">    The main call consists in calling [loop_f] to get a function [loop]</font>
+<font color="990000">    and then to call this function (first to get the patterns and then a second</font>
+<font color="990000">    time to get the patterns in reverse order).</font>
+<font color="990000"></font>
+<font color="990000">    Note how the recursive calls to [loop_f] in [loop_t] have been</font>
+<font color="990000">    factorized, out of the closure [fun () -> ...]. Therefore, the </font>
+<font color="990000">    partial evaluation [(loop_t k t)] in [loop_f] is really performing</font>
+<font color="990000">    computations.</font>
+<font color="990000"></font>
+<font color="990000">    This code is roughly 33\% faster than the previous one. *)</font>
+
+<font color="green">let</font> ideals2 f =
+  <font color="green">let</font> n = forest_size f <font color="green">in</font>
+  <font color="green">let</font> bits = <font color="0033cc">Array</font>.create n 0 <font color="green">in</font>
+  <font color="green">let</font> dump () = <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> n - 1 <font color="77aaaa">do</font> printf <font color="aa4444">"%d"</font> bits.(i) <font color="77aaaa">done</font>; printf <font color="aa4444">"\n"</font> <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> loop_f k = <font color="green">function</font>
+    <font color="77aaaa">|</font> [] -> k
+    <font color="77aaaa">|</font> t :: f ->	loop_t (loop_f k f) t
+  <font color="green">and</font> loop_t k (<font color="0033cc">Node</font> (i,f)) =
+    <font color="green">let</font> lf = loop_f k f <font color="green">in</font>
+    <font color="green">fun</font> () ->
+      <font color="77aaaa">if</font> bits.(i) == 0 <font color="77aaaa">then</font> <font color="990099">begin</font>
+	k (); bits.(i) <- 1; lf ()
+      <font color="990099">end</font> <font color="77aaaa">else</font> <font color="990099">begin</font>
+	lf (); bits.(i) <- 0; k ()
+      <font color="990099">end</font>
+  <font color="green">in</font>
+  <font color="green">let</font> k0 () = <font color="77aaaa">if</font> !display <font color="77aaaa">then</font> dump (); <font color="77aaaa">if</font> !dot <font color="77aaaa">then</font> to_dot f bits <font color="green">in</font>
+  <font color="green">let</font> loop = loop_f k0 f <font color="green">in</font>
+  <font color="77aaaa">if</font> !display <font color="77aaaa">then</font> 
+    printf <font color="aa4444">"Bitstrings generated from \"%s\":\n"</font> (print_forest f);
+  loop ();
+  <font color="77aaaa">if</font> !display <font color="77aaaa">then</font> printf <font color="aa4444">"... and now we generate them in reverse:\n"</font>; 
+  loop ()
+
+<font color="990000">(* \newpage *)</font>
+<font color="990000">(*S A defunctionalized implementation. The above code is nice but makes</font>
+<font color="990000">    many calls to unknown functions, which incurs a high speed penalty</font>
+<font color="990000">    on modern processors. Instead, we represent closures using an explicit</font>
+<font color="990000">    datatype.</font>
+<font color="990000"></font>
+<font color="990000">    Defunctionalization is originally due to Reynolds. It has been recently</font>
+<font color="990000">    studied again by Danvy and employed by Cejtin, Jagannathan and Weeks in</font>
+<font color="990000">    the MLton compiler.</font>
+<font color="990000"></font>
+<font color="990000">    This approach seems roughly 25\% faster than the previous one, when</font>
+<font color="990000">    compiled with \verb+ocamlopt+. *)</font>
+
+<font color="green">type</font> continuation =
+  <font color="77aaaa">|</font> <font color="0033cc">Continue</font> <font color="green">of</font> int * continuation * continuation <font color="990000">(* values for [i], [k] and [k'] *)</font>
+  <font color="77aaaa">|</font> <font color="0033cc">Init</font>
+
+<font color="green">let</font> ideals3 f =
+  <font color="green">let</font> n = forest_size f <font color="green">in</font>
+  <font color="green">let</font> bits = <font color="0033cc">Array</font>.create n 0 <font color="green">in</font>
+  <font color="green">let</font> dump () = <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> n - 1 <font color="77aaaa">do</font> printf <font color="aa4444">"%d"</font> bits.(i) <font color="77aaaa">done</font>; printf <font color="aa4444">"\n"</font> <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> loop_f k = <font color="green">function</font>
+    <font color="77aaaa">|</font> [] -> k
+    <font color="77aaaa">|</font> t :: f ->	loop_t (loop_f k f) t
+  <font color="green">and</font> loop_t k (<font color="0033cc">Node</font> (i,f)) =
+    <font color="0033cc">Continue</font> (i, k, loop_f k f)
+  <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> exec = <font color="green">function</font>
+    <font color="77aaaa">|</font> <font color="0033cc">Continue</font> (i, k, k') ->
+	<font color="77aaaa">if</font> bits.(i) == 0 <font color="77aaaa">then</font> <font color="990099">begin</font>
+	  exec k; bits.(i) <- 1; exec k'
+	<font color="990099">end</font> <font color="77aaaa">else</font> <font color="990099">begin</font>
+	  exec k'; bits.(i) <- 0; exec k
+	<font color="990099">end</font>
+    <font color="77aaaa">|</font> <font color="0033cc">Init</font> ->
+	<font color="77aaaa">if</font> !display <font color="77aaaa">then</font> dump (); <font color="77aaaa">if</font> !dot <font color="77aaaa">then</font> to_dot f bits
+  <font color="green">in</font>
+  <font color="green">let</font> loop = loop_f <font color="0033cc">Init</font> f <font color="green">in</font>
+  <font color="77aaaa">if</font> !display <font color="77aaaa">then</font>
+    printf <font color="aa4444">"Bitstrings generated from \"%s\":\n"</font> (print_forest f);
+  exec loop;
+  <font color="77aaaa">if</font> !display <font color="77aaaa">then</font> printf <font color="aa4444">"... and now we generate them in reverse:\n"</font>;
+  exec loop
+
+<font color="990000">(* \newpage *)</font>
+<font color="990000">(*S An ``even more defunctionalized'' implementation. It is easy to</font>
+<font color="990000">    see that the execution of [loop_f] above does nothing but create</font>
+<font color="990000">    exactly one [Continue] node per node in the forest. So, the work</font>
+<font color="990000">    performed during this phase essentially amounts to associating</font>
+<font color="990000">    two nodes, namely the nodes associated with the continuations [k]</font>
+<font color="990000">    and [k'], to every node. Then, why not represent this association</font>
+<font color="990000">    using two integer arrays? This is what we do below. The arrays</font>
+<font color="990000">    [ak] and [ak'] associate a continuation to every node. The special</font>
+<font color="990000">    value $-1$ is used to represent the initial continuation.</font>
+<font color="990000"></font>
+<font color="990000">    This approach seems roughly 3\% faster than the previous one, when</font>
+<font color="990000">    compiled with \verb+ocamlopt -unsafe+. *)</font>
+
+<font color="green">let</font> ideals4 f =
+  <font color="green">let</font> n = forest_size f <font color="green">in</font>
+  <font color="green">let</font> bits = <font color="0033cc">Array</font>.create n 0 <font color="green">in</font>
+  <font color="green">let</font> ak = <font color="0033cc">Array</font>.create n (-1)
+  <font color="green">and</font> ak' = <font color="0033cc">Array</font>.create n (-1) <font color="green">in</font>
+  <font color="green">let</font> dump () = <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> n - 1 <font color="77aaaa">do</font> printf <font color="aa4444">"%d"</font> bits.(i) <font color="77aaaa">done</font>; printf <font color="aa4444">"\n"</font> <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> loop_f k = <font color="green">function</font>
+    <font color="77aaaa">|</font> [] -> k
+    <font color="77aaaa">|</font> t :: f ->	loop_t (loop_f k f) t
+  <font color="green">and</font> loop_t k (<font color="0033cc">Node</font> (i,f)) =
+    ak.(i) <- k;
+    ak'.(i) <- loop_f k f;
+    i
+  <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> exec = <font color="green">function</font>
+    <font color="77aaaa">|</font> (-1) ->
+	<font color="77aaaa">if</font> !display <font color="77aaaa">then</font> dump (); <font color="77aaaa">if</font> !dot <font color="77aaaa">then</font> to_dot f bits
+    <font color="77aaaa">|</font> i ->
+	<font color="77aaaa">if</font> bits.(i) == 0 <font color="77aaaa">then</font> <font color="990099">begin</font>
+	  exec ak.(i); bits.(i) <- 1; exec ak'.(i)
+	<font color="990099">end</font> <font color="77aaaa">else</font> <font color="990099">begin</font>
+	  exec ak'.(i); bits.(i) <- 0; exec ak.(i)
+	<font color="990099">end</font>
+  <font color="green">in</font>
+  <font color="green">let</font> loop = loop_f (-1) f <font color="green">in</font>
+  <font color="77aaaa">if</font> !display <font color="77aaaa">then</font>
+    printf <font color="aa4444">"Bitstrings generated from \"%s\":\n"</font> (print_forest f);
+  exec loop;
+  <font color="77aaaa">if</font> !display <font color="77aaaa">then</font> printf <font color="aa4444">"... and now we generate them in reverse:\n"</font>;
+  exec loop
+
+<font color="990000">(* \newpage *)</font>
+<font color="990000">(*S Count. The following functions [count_f] and [count_t] compute the</font>
+<font color="990000">    number of patterns, respectively for forests and trees.</font>
+<font color="990000">    We use 64-bits integers to avoid overflows. *)</font>
+
+<font color="green">let</font> <font color="green">rec</font> count_f f = 
+  <font color="0033cc">List</font>.fold_left (<font color="green">fun</font> n t -> <font color="0033cc">Int64</font>.mul n (count_t t)) <font color="0033cc">Int64</font>.one f
+
+<font color="green">and</font> count_t (<font color="0033cc">Node</font> (_,f)) =  
+  <font color="0033cc">Int64</font>.succ (count_f f)
+  
+
+<font color="990000">(*S Main program. The forest is given on the command line. Options may also</font>
+<font color="990000">    be passed to first print the number of patterns (\verb!-count!),</font>
+<font color="990000">    to select a {\tt dot} rendering (\verb!-dot!), to</font>
+<font color="990000">    suppress the printings on standard output (\verb!-silent!) and/or to</font>
+<font color="990000">    select the desired implementation (\verb!-algo1! and \verb!-algo2!</font>
+<font color="990000">    respectively). *)</font>
+
+<font color="green">let</font> forest = ref []
+<font color="green">let</font> algo0 = ref false
+<font color="green">let</font> algo1 = ref false
+<font color="green">let</font> algo2 = ref false
+<font color="green">let</font> algo3 = ref false
+<font color="green">let</font> algo4 = ref false
+<font color="green">let</font> count = ref false
+
+<font color="green">let</font> _ = 
+  <font color="0033cc">Arg</font>.parse
+    [ <font color="aa4444">"-dot"</font>, <font color="0033cc">Arg</font>.<font color="0033cc">Set</font> dot, <font color="aa4444">"display patterns using dot"</font>;
+      <font color="aa4444">"-silent"</font>, <font color="0033cc">Arg</font>.<font color="0033cc">Clear</font> display, <font color="aa4444">"do not display patterns on stdout"</font>;
+      <font color="aa4444">"-count"</font>, <font color="0033cc">Arg</font>.<font color="0033cc">Set</font> count, <font color="aa4444">"print number of patterns"</font>;
+      <font color="aa4444">"-algo0"</font>, <font color="0033cc">Arg</font>.<font color="0033cc">Set</font> algo0, <font color="aa4444">"use algo 0"</font>;
+      <font color="aa4444">"-algo1"</font>, <font color="0033cc">Arg</font>.<font color="0033cc">Set</font> algo1, <font color="aa4444">"use algo 1"</font>;
+      <font color="aa4444">"-algo2"</font>, <font color="0033cc">Arg</font>.<font color="0033cc">Set</font> algo2, <font color="aa4444">"use algo 2"</font>;
+      <font color="aa4444">"-algo3"</font>, <font color="0033cc">Arg</font>.<font color="0033cc">Set</font> algo3, <font color="aa4444">"use algo 3"</font>;
+      <font color="aa4444">"-algo4"</font>, <font color="0033cc">Arg</font>.<font color="0033cc">Set</font> algo4, <font color="aa4444">"use algo 4"</font> ]
+    (<font color="green">fun</font> s -> forest := from_paren s)
+    <font color="aa4444">"usage: koda-ruskey [options] \"nested parentheses\""</font>
+
+<font color="green">let</font> _ =
+  <font color="77aaaa">if</font> !count <font color="77aaaa">then</font> <font color="990099">begin</font>
+    printf <font color="aa4444">"nb patterns = %s\n"</font> (<font color="0033cc">Int64</font>.format <font color="aa4444">"%d"</font> (count_f !forest)); 
+    flush stdout
+  <font color="990099">end</font>;
+  <font color="77aaaa">if</font> !algo0 <font color="77aaaa">then</font> ideals0 !forest;
+  <font color="77aaaa">if</font> !algo1 <font color="77aaaa">then</font> ideals !forest;
+  <font color="77aaaa">if</font> !algo2 <font color="77aaaa">then</font> ideals2 !forest;
+  <font color="77aaaa">if</font> !algo3 <font color="77aaaa">then</font> ideals3 !forest;
+  <font color="77aaaa">if</font> !algo4 <font color="77aaaa">then</font> ideals4 !forest;
+  flush stdout;
+  <font color="77aaaa">if</font> !dot <font color="77aaaa">then</font> <font color="990099">begin</font>
+    <font color="77aaaa">if</font> not !algo1 <font color="77aaaa">&&</font> not !algo2 <font color="77aaaa">&&</font> not !algo3 <font color="77aaaa">&&</font> not !algo4 <font color="77aaaa">then</font>
+      to_dot !forest (<font color="0033cc">Array</font>.create (forest_size !forest) 0);
+    close_out cout;
+    ignore (<font color="0033cc">Sys</font>.command <font color="aa4444">"dot -Tps -o tree.ps tree.dot"</font>);
+    ignore (<font color="0033cc">Sys</font>.command <font color="aa4444">"gv -media automatic tree.ps"</font>)
+  <font color="990099">end</font>
+</pre></body></html>

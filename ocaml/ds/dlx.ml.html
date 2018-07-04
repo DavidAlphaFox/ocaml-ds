@@ -1,0 +1,323 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+dlx.ml</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="dlx.ml"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(* See Knuth's Dancing Links paper for details on the following code. *)</span>
+
+<span class="Copen">open</span> <span class="Cconstructor">Format</span>
+
+<span class="Ctype">type</span> node <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span>
+  <span class="Cmutable">mutable</span> left : node<span class="Cnonalphakeyword">;</span>
+  <span class="Cmutable">mutable</span> right: node<span class="Cnonalphakeyword">;</span>
+  <span class="Cmutable">mutable</span> up   : node<span class="Cnonalphakeyword">;</span>
+  <span class="Cmutable">mutable</span> down : node<span class="Cnonalphakeyword">;</span>
+  <span class="Cmutable">mutable</span> col  : node<span class="Cnonalphakeyword">;</span>
+  name : string<span class="Cnonalphakeyword">;</span> <span class="Ccomment">(* header only *)</span>
+  <span class="Cmutable">mutable</span> size : int<span class="Cnonalphakeyword">;</span>
+<span class="Cnonalphakeyword">}</span>
+
+<span class="Ctype">type</span> column <span class="Cnonalphakeyword">=</span> node
+
+<span class="Ctype">type</span> problem <span class="Cnonalphakeyword">=</span> node
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string -&gt; node">create_node</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string">name</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Cnonalphakeyword">{</span> left <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">;</span> right <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">;</span> up <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">;</span> down <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">;</span> col <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">;</span> name <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string">name</a><span class="Cnonalphakeyword">;</span> size <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a><span class="Cnonalphakeyword">;</span> <span class="Cnonalphakeyword">}</span>
+  <span class="Cin">in</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a>
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string -&gt; node">create_column</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string -&gt; node">create_node</a>
+
+<span class="Ccomment">(* make a left-right doubly linked list from a list of nodes *)</span>
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">make_dllist</a> <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+  <span class="Cbar">|</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list"><span class="Cnonalphakeyword">[</span><span class="Cnonalphakeyword">]</span></a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit"><span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span></a>
+  <span class="Cbar">|</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">first</a> <span class="Cnonalphakeyword">::</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list"><span class="Cnonalphakeyword">_</span></a> <span class="Cas">as</span> l <span class="Cnonalphakeyword">-&gt;</span>
+      <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">make</a> <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+        <span class="Cbar">|</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list"><span class="Cnonalphakeyword">[</span><span class="Cnonalphakeyword">]</span></a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit"><span class="Cassert">assert</span> <span class="Cfalse">false</span></a>
+        <span class="Cbar">|</span> <span class="Cnonalphakeyword">[</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">]</span> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">first</a><span class="Cnonalphakeyword">.</span>left <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">.</span>right <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">first</a>
+        <span class="Cbar">|</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a> <span class="Cnonalphakeyword">::</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">m</a> <span class="Cnonalphakeyword">::</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list"><span class="Cnonalphakeyword">_</span></a> <span class="Cas">as</span> l<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">.</span>right <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">m</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">m</a><span class="Cnonalphakeyword">.</span>left <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">make</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">l</a>
+      <span class="Cin">in</span>
+      <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">make</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">l</a>
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; node">create_problem</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">cl</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string -&gt; node">create_node</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string"><span class="Cstring">"root"</span></a> <span class="Cin">in</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">make_dllist</a> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cnonalphakeyword">::</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">cl</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a>
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">add_row</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">cl</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node">one</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cnonalphakeyword">=</span> <span class="Ccomment">(* inserts a new 1 node in column c and returns it *)</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>size <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>size <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">+</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">1</a><span class="Cnonalphakeyword">;</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string -&gt; node">create_node</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string"><span class="Cstring">""</span></a> <span class="Cin">in</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">.</span>col <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">;</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">.</span>down <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>down<span class="Cnonalphakeyword">;</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>down <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">;</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">.</span>up <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">;</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">.</span>down<span class="Cnonalphakeyword">.</span>up <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a><span class="Cnonalphakeyword">;</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">n</a>
+  <span class="Cin">in</span>
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">nodes</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="(node -&gt; node) -&gt; node list -&gt; node list"><span class="Cconstructor">List</span><span class="Cnonalphakeyword">.</span>map</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node">one</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">cl</a> <span class="Cin">in</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">make_dllist</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">nodes</a>
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; 'a) -&gt; unit">iter_up</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a">f</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool"><span class="Cnonalphakeyword">!=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cthen">then</span> <span class="Cbegin">begin</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a><span class="Cnonalphakeyword">.</span>up <span class="Cend">end</span> <span class="Cin">in</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>up
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; 'a) -&gt; unit">iter_down</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a">f</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool"><span class="Cnonalphakeyword">!=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cthen">then</span> <span class="Cbegin">begin</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a><span class="Cnonalphakeyword">.</span>down <span class="Cend">end</span> <span class="Cin">in</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>down
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; 'a -&gt; 'a) -&gt; 'a -&gt; 'a">fold_down</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a -&gt; 'a">f</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a -&gt; 'a">fold</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="'a">acc</a> <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool"><span class="Cnonalphakeyword">!=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cthen">then</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a -&gt; 'a">fold</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a><span class="Cnonalphakeyword">.</span>down <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a -&gt; 'a">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="'a">acc</a><span class="Cnonalphakeyword">)</span> <span class="Celse">else</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="'a">acc</a> <span class="Cin">in</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a -&gt; 'a">fold</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>down
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; 'a) -&gt; unit">iter_left</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a">f</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool"><span class="Cnonalphakeyword">!=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cthen">then</span> <span class="Cbegin">begin</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a><span class="Cnonalphakeyword">.</span>left <span class="Cend">end</span> <span class="Cin">in</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>left
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; 'a) -&gt; unit">iter_right</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a">f</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool"><span class="Cnonalphakeyword">!=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cthen">then</span> <span class="Cbegin">begin</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; 'a">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a><span class="Cnonalphakeyword">.</span>right <span class="Cend">end</span> <span class="Cin">in</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>right
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">cover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Cassert">assert</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>col <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool">==</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span> <span class="Ccomment">(* it is a column *)</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>right<span class="Cnonalphakeyword">.</span>left <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>left<span class="Cnonalphakeyword">;</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>left<span class="Cnonalphakeyword">.</span>right <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>right<span class="Cnonalphakeyword">;</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_down</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a>
+    <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">i</a> <span class="Cnonalphakeyword">-&gt;</span>
+       <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_right</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">i</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a> <span class="Cnonalphakeyword">-&gt;</span>
+                       <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>down<span class="Cnonalphakeyword">.</span>up <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>up<span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>up<span class="Cnonalphakeyword">.</span>down <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>down<span class="Cnonalphakeyword">;</span>
+                       <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">.</span>size <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">.</span>size <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">-</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">1</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">uncover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Cassert">assert</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>col <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool">==</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span> <span class="Ccomment">(* it is a column *)</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_up</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a>
+    <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">i</a> <span class="Cnonalphakeyword">-&gt;</span>
+       <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_left</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">i</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a> <span class="Cnonalphakeyword">-&gt;</span>
+                      <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>down<span class="Cnonalphakeyword">.</span>up <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>up<span class="Cnonalphakeyword">.</span>down <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">;</span>
+                      <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">.</span>size <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">.</span>size <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">+</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">1</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>right<span class="Cnonalphakeyword">.</span>left <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">;</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>left<span class="Cnonalphakeyword">.</span>right <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a>
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node">choose_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int ref">s</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int ref">ref</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a><span class="Cnonalphakeyword">.</span>right<span class="Cnonalphakeyword">.</span>size <span class="Cin">in</span>
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node ref">c</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node ref">ref</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a><span class="Cnonalphakeyword">.</span>right <span class="Cin">in</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_right</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>size <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">&lt;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int ref -&gt; int">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int ref">s</a> <span class="Cthen">then</span> <span class="Cbegin">begin</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int ref">s</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int ref -&gt; int -&gt; unit"><span class="Cnonalphakeyword">:=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>size<span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node ref">c</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node ref -&gt; node -&gt; unit"><span class="Cnonalphakeyword">:=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a> <span class="Cend">end</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+  <span class="Cassert">assert</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="node ref -&gt; node">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="node ref">c</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool"><span class="Cnonalphakeyword">!=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node ref -&gt; node">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="node ref">c</a>
+
+<span class="Ccomment">(* finds all solutions and applies f on each *)</span>
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node list -&gt; unit) -&gt; unit">find_all_solutions</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">f</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">search</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">sol</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a><span class="Cnonalphakeyword">.</span>right <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool">==</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cthen">then</span>
+      <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">sol</a>
+    <span class="Celse">else</span> <span class="Cbegin">begin</span>
+      <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node">choose_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cin">in</span>
+      <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>down <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool">==</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cthen">then</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="exn -&gt; unit">raise</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="exn"><span class="Cconstructor">Exit</span></a><span class="Cnonalphakeyword">;</span> <span class="Ccomment">(* empty column = no solution *)</span>
+      <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">cover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">;</span>
+      <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_down</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a>
+        <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">-&gt;</span>
+           <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_right</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">cover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+           <span class="Cbegin">begin</span> <span class="Ctry">try</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">search</a> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">::</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">sol</a><span class="Cnonalphakeyword">)</span> <span class="Cwith">with</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="exn"><span class="Cconstructor">Exit</span></a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit"><span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span></a> <span class="Cend">end</span><span class="Cnonalphakeyword">;</span>
+           <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_left</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">uncover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+        <span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+      <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">uncover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a>
+    <span class="Cend">end</span>
+  <span class="Cin">in</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; unit">search</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list"><span class="Cnonalphakeyword">[</span><span class="Cnonalphakeyword">]</span></a>
+
+<span class="Ctype">type</span> solution <span class="Cnonalphakeyword">=</span> node list
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list -&gt; string list list">unpack_solution</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">s</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; string list">unpack_row</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string list ref">l</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string list -&gt; string list ref">ref</a> <span class="Cnonalphakeyword">[</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">.</span>name<span class="Cnonalphakeyword">]</span> <span class="Cin">in</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_left</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string list ref">l</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string list ref -&gt; string list -&gt; unit"><span class="Cnonalphakeyword">:=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">.</span>name <span class="Cnonalphakeyword">::</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string list ref -&gt; string list">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="string list ref">l</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string list ref -&gt; string list">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="string list ref">l</a>
+  <span class="Cin">in</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="(node -&gt; string list) -&gt; node list -&gt; string list list"><span class="Cconstructor">List</span><span class="Cnonalphakeyword">.</span>map</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; string list">unpack_row</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node list">s</a>
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Format.formatter -&gt; node list -&gt; unit">print_solution</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Format.formatter">fmt</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">print_col_name</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">o</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Format.formatter -&gt; (string -&gt; unit, Format.formatter, unit) format -&gt; string -&gt; unit">fprintf</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Format.formatter">fmt</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="(string -&gt; unit, Format.formatter, unit) format"><span class="Cstring">"%s "</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">o</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">.</span>name <span class="Cin">in</span>
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">print_row</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">=</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">print_col_name</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_right</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">print_col_name</a><span class="Cnonalphakeyword">;</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="(unit, Format.formatter, unit) format -&gt; unit">printf</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="(unit, Format.formatter, unit) format"><span class="Cstring">"@."</span></a>
+  <span class="Cin">in</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="(node -&gt; unit) -&gt; node list -&gt; unit"><span class="Cconstructor">List</span><span class="Cnonalphakeyword">.</span>iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">print_row</a>
+
+<span class="Ccomment">(*i</span>
+<span class="Ccomment">let count_all_solutions p =</span>
+<span class="Ccomment">  let count = ref 0 in</span>
+<span class="Ccomment">  find_all_solutions p (fun _ -&gt; incr count);</span>
+<span class="Ccomment">  !count</span>
+<span class="Ccomment">i*)</span>
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; int">count_all_solutions</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int">search</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">count</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a><span class="Cnonalphakeyword">.</span>right <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool">==</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cthen">then</span>
+      <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">count</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">+</span></a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">1</a>
+    <span class="Celse">else</span> <span class="Cbegin">begin</span>
+      <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node">choose_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cin">in</span>
+      <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>down <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool">==</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cthen">then</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">count</a> <span class="Ccomment">(* empty column = no solution *)</span>
+      <span class="Celse">else</span> <span class="Cbegin">begin</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">cover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">;</span>
+        <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">count</a> <span class="Cnonalphakeyword">=</span>
+          <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; int -&gt; int) -&gt; int -&gt; int">fold_down</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a>
+            <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">count</a> <span class="Cnonalphakeyword">-&gt;</span>
+              <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_right</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">cover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+              <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">count</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int">search</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">count</a> <span class="Cin">in</span>
+              <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_left</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">uncover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+              <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">count</a><span class="Cnonalphakeyword">)</span>
+            <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">count</a>
+        <span class="Cin">in</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">uncover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">;</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">count</a>
+      <span class="Cend">end</span>
+    <span class="Cend">end</span>
+  <span class="Cin">in</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int">search</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a>
+
+
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; int64">count_all_solutions_int64</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64 -&gt; int64">search</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64">count</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a><span class="Cnonalphakeyword">.</span>right <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool">==</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cthen">then</span>
+      <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64 -&gt; int64"><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>succ</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64">count</a>
+    <span class="Celse">else</span> <span class="Cbegin">begin</span>
+      <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node">choose_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">h</a> <span class="Cin">in</span>
+      <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">.</span>down <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; node -&gt; bool">==</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a> <span class="Cthen">then</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64">count</a> <span class="Ccomment">(* empty column = no solution *)</span>
+      <span class="Celse">else</span> <span class="Cbegin">begin</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">cover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">;</span>
+        <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64">count</a> <span class="Cnonalphakeyword">=</span>
+          <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; int64 -&gt; int64) -&gt; int64 -&gt; int64">fold_down</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a>
+            <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64">count</a> <span class="Cnonalphakeyword">-&gt;</span>
+              <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_right</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">cover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+              <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64">count</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64 -&gt; int64">search</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64">count</a> <span class="Cin">in</span>
+              <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; (node -&gt; unit) -&gt; unit">iter_left</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">r</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">uncover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">j</a><span class="Cnonalphakeyword">.</span>col<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+              <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64">count</a><span class="Cnonalphakeyword">)</span>
+            <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64">count</a>
+        <span class="Cin">in</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node -&gt; unit">uncover_column</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="node">c</a><span class="Cnonalphakeyword">;</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64">count</a>
+      <span class="Cend">end</span>
+    <span class="Cend">end</span>
+  <span class="Cin">in</span>
+  <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64 -&gt; int64">search</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int64">0<span class="Cconstructor">L</span></a>
+
+<span class="Ccomment">(*i</span>
+<span class="Ccomment">(* test *)</span>
+<span class="Ccomment">let [a;b;c;d;e;f;g] as cols =</span>
+<span class="Ccomment">  List.map create_node ["a";"b";"c";"d";"e";"f";"g"]</span>
+<span class="Ccomment">let root = create_problem cols</span>
+<span class="Ccomment">let () = add_row [      d;e;  g]</span>
+<span class="Ccomment">let () = add_row [  b;        g]</span>
+<span class="Ccomment">let () = add_row [a;    d;     ]</span>
+<span class="Ccomment">let () = add_row [  b;c;    f; ]</span>
+<span class="Ccomment">let () = add_row [a;    d;    g]</span>
+<span class="Ccomment">let () = add_row [    c;  e;f; ]</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">let _ =</span>
+<span class="Ccomment">  find_all_solutions root</span>
+<span class="Ccomment">    (fun s -&gt;</span>
+<span class="Ccomment">      let ll = unpack_solution s in</span>
+<span class="Ccomment">      List.iter</span>
+<span class="Ccomment"></span>        <span class="Ccomment">(fun r -&gt;</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  List.iter (fun s -&gt; Format.printf "%s " s) r;</span>
+<span class="Ccomment"></span>        <span class="Ccomment">  Format.printf "@.")</span>
+<span class="Ccomment"></span>        <span class="Ccomment">ll)</span>
+<span class="Ccomment">i*)</span>
+
+
+
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

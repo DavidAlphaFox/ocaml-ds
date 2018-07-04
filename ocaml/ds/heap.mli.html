@@ -1,0 +1,144 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+braun.mli</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="braun.mli"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(* Braun trees.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">  Code for functions [size] and [copy] from this paper:</span>
+<span class="Ccomment">      Three Algorithms on Braun Trees (Functional Pearl)</span>
+<span class="Ccomment">      Chris Okasaki</span>
+<span class="Ccomment">      J. Functional Programming 7 (6) 661–666, November 1997</span>
+<span class="Ccomment">*)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">Ordered</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+  <span class="Ctype">type</span> t
+  <span class="Cval">val</span> le: t <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> bool
+<span class="Cend">end</span>
+
+<span class="Cexception">exception</span> <span class="Cconstructor">Empty</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Make</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">X</span>: <span class="Cconstructor">Ordered</span><span class="Cnonalphakeyword">)</span>: <span class="Csig">sig</span>
+
+  <span class="Ctype">type</span> t
+
+  <span class="Cval">val</span> empty: t
+
+  <span class="Cval">val</span> is_empty: t <span class="Cnonalphakeyword">-&gt;</span> bool
+    <span class="Ccomment">(* runs in O(1) *)</span>
+
+  <span class="Cval">val</span> insert: <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> t
+    <span class="Ccomment">(* runs in O(log n) *)</span>
+
+  <span class="Cval">val</span> min: t <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t
+    <span class="Ccomment">(* runs in O(1) *)</span>
+
+  <span class="Cval">val</span> extract_min: t <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t <span class="Cnonalphakeyword">*</span> t
+    <span class="Ccomment">(* runs in O(log n) *)</span>
+
+  <span class="Cval">val</span> naive_size: t <span class="Cnonalphakeyword">-&gt;</span> int
+    <span class="Ccomment">(* runs in O(n) *)</span>
+  <span class="Cval">val</span> size: t <span class="Cnonalphakeyword">-&gt;</span> int
+    <span class="Ccomment">(* runs in O((log n)^2) *)</span>
+
+  <span class="Cval">val</span> copy: int <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t <span class="Cnonalphakeyword">-&gt;</span> t
+    <span class="Ccomment">(* [copy n x] returns a tree containing [n] occurrences of [x]</span>
+<span class="Ccomment">       runs in O(log n) *)</span>
+
+<span class="Cend">end</span>
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

@@ -1,0 +1,221 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+puf.ml</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="puf.ml"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(* Persistent union-find = Tarjan's algorithm with persistent arrays *)</span>
+
+<span class="Ccomment">(* persistent arrays; see the module [Parray] for explanations *)</span>
+<span class="Cmodule">module</span> <span class="Cconstructor">Pa</span> <span class="Cnonalphakeyword">=</span> <span class="Cstruct">struct</span>
+
+  <span class="Ctype">type</span> t <span class="Cnonalphakeyword">=</span> data ref
+  <span class="Cand">and</span> data <span class="Cnonalphakeyword">=</span>
+    <span class="Cbar">|</span> <span class="Cconstructor">Array</span> <span class="Cof">of</span> int array 
+    <span class="Cbar">|</span> <span class="Cconstructor">Diff</span> <span class="Cof">of</span> int <span class="Cnonalphakeyword">*</span> int <span class="Cnonalphakeyword">*</span> t
+        
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; data ref">create</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="data -&gt; data ref">ref</a> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int array"><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>create</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; (int -&gt; int) -&gt; data ref">init</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int">f</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="data -&gt; data ref">ref</a> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; (int -&gt; int) -&gt; int array"><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>init</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int">f</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+    
+  <span class="Ccomment">(* reroot t ensures that t becomes an Array node *)</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; unit">reroot</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <span class="Cwith">with</span>
+    <span class="Cbar">|</span> <span class="Cconstructor">Array</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array"><span class="Cnonalphakeyword">_</span></a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit"><span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span></a>
+    <span class="Cbar">|</span> <span class="Cconstructor">Diff</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t'</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; unit">reroot</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t'</a><span class="Cnonalphakeyword">;</span>
+        <span class="Cbegin">begin</span> <span class="Cmatch">match</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t'</a> <span class="Cwith">with</span>
+          <span class="Cbar">|</span> <span class="Cconstructor">Array</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a> <span class="Cas">as</span> n <span class="Cnonalphakeyword">-&gt;</span>
+              <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v'</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+              <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v</a><span class="Cnonalphakeyword">;</span>
+              <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data -&gt; unit"><span class="Cnonalphakeyword">:=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="data">n</a><span class="Cnonalphakeyword">;</span>
+              <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t'</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data -&gt; unit"><span class="Cnonalphakeyword">:=</span></a> <span class="Cconstructor">Diff</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v'</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a><span class="Cnonalphakeyword">)</span>
+          <span class="Cbar">|</span> <span class="Cconstructor">Diff</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int"><span class="Cnonalphakeyword">_</span></a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit"><span class="Cassert">assert</span> <span class="Cfalse">false</span></a>
+        <span class="Cend">end</span>
+  
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; (unit -&gt; 'a) -&gt; 'a">rerootk</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit -&gt; 'a">k</a> <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <span class="Cwith">with</span>
+    <span class="Cbar">|</span> <span class="Cconstructor">Array</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array"><span class="Cnonalphakeyword">_</span></a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit -&gt; 'a">k</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit"><span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span></a>
+    <span class="Cbar">|</span> <span class="Cconstructor">Diff</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t'</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; (unit -&gt; 'a) -&gt; 'a">rerootk</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t'</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit"><span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span></a> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cbegin">begin</span> <span class="Cmatch">match</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t'</a> <span class="Cwith">with</span>
+                      <span class="Cbar">|</span> <span class="Cconstructor">Array</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a> <span class="Cas">as</span> n <span class="Cnonalphakeyword">-&gt;</span>
+                          <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v'</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+                          <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v</a><span class="Cnonalphakeyword">;</span>
+                          <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data -&gt; unit"><span class="Cnonalphakeyword">:=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="data">n</a><span class="Cnonalphakeyword">;</span>
+                          <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t'</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data -&gt; unit"><span class="Cnonalphakeyword">:=</span></a> <span class="Cconstructor">Diff</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v'</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a><span class="Cnonalphakeyword">)</span>
+                      <span class="Cbar">|</span> <span class="Cconstructor">Diff</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int"><span class="Cnonalphakeyword">_</span></a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit"><span class="Cassert">assert</span> <span class="Cfalse">false</span></a> <span class="Cend">end</span><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit -&gt; 'a">k</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit"><span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span></a><span class="Cnonalphakeyword">)</span>
+
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; unit">reroot</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; (unit -&gt; unit) -&gt; unit">rerootk</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit"><span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span></a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="unit"><span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span></a><span class="Cnonalphakeyword">)</span>
+
+  <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; int -&gt; int">get</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <span class="Cwith">with</span>
+    <span class="Cbar">|</span> <span class="Cconstructor">Array</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a> <span class="Cnonalphakeyword">-&gt;</span> 
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span>
+    <span class="Cbar">|</span> <span class="Cconstructor">Diff</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int"><span class="Cnonalphakeyword">_</span></a> <span class="Cnonalphakeyword">-&gt;</span> 
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; unit">reroot</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a><span class="Cnonalphakeyword">;</span> 
+        <span class="Cbegin">begin</span> <span class="Cmatch">match</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <span class="Cwith">with</span> <span class="Cconstructor">Array</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cbar">|</span> <span class="Cconstructor">Diff</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int"><span class="Cnonalphakeyword">_</span></a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int"><span class="Cassert">assert</span> <span class="Cfalse">false</span></a> <span class="Cend">end</span>
+      
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; int -&gt; int -&gt; t">set</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v</a> <span class="Cnonalphakeyword">=</span> 
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; unit">reroot</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a><span class="Cnonalphakeyword">;</span>
+    <span class="Cmatch">match</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data">!</a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Array</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a> <span class="Cas">as</span> n <span class="Cnonalphakeyword">-&gt;</span>
+          <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">old</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+          <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">old</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool">==</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v</a> <span class="Cthen">then</span>
+            <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a>
+          <span class="Celse">else</span> <span class="Cbegin">begin</span>
+            <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int array">a</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">v</a><span class="Cnonalphakeyword">;</span>
+            <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="data ref">res</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="data -&gt; data ref">ref</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="data">n</a> <span class="Cin">in</span>
+            <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">t</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; data -&gt; unit"><span class="Cnonalphakeyword">:=</span></a> <span class="Cconstructor">Diff</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">old</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">res</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+            <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">res</a>
+          <span class="Cend">end</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Diff</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int"><span class="Cnonalphakeyword">_</span></a> <span class="Cnonalphakeyword">-&gt;</span>
+          <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t"><span class="Cassert">assert</span> <span class="Cfalse">false</span></a>
+
+<span class="Cend">end</span>
+
+<span class="Ccomment">(* Tarjan's algorithm *)</span>
+
+<span class="Ctype">type</span> t <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> 
+  <span class="Cmutable">mutable</span> father: <span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>t<span class="Cnonalphakeyword">;</span> <span class="Ccomment">(* mutable to allow path compression *)</span>
+  c: <span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>t<span class="Cnonalphakeyword">;</span> <span class="Ccomment">(* ranks *)</span>
+<span class="Cnonalphakeyword">}</span>
+      
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; t">create</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <span class="Cnonalphakeyword">=</span> 
+  <span class="Cnonalphakeyword">{</span> c <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; Pa.t"><span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>create</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a><span class="Cnonalphakeyword">;</span>
+    father <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; (int -&gt; int) -&gt; Pa.t"><span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>init</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <span class="Cnonalphakeyword">-&gt;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">}</span>
+    
+<span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t -&gt; int -&gt; Pa.t * int">find_aux</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <span class="Cnonalphakeyword">=</span> 
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">fi</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t -&gt; int -&gt; int"><span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>get</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <span class="Cin">in</span>
+  <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">fi</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool">==</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <span class="Cthen">then</span> 
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t">f</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a>
+  <span class="Celse">else</span> 
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t">f</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">r</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t -&gt; int -&gt; Pa.t * int">find_aux</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">fi</a> <span class="Cin">in</span> 
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t">f</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t -&gt; int -&gt; int -&gt; Pa.t"><span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>set</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">r</a> <span class="Cin">in</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t">f</a><span class="Cnonalphakeyword">,</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">r</a>
+      
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; int -&gt; int">find</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">x</a> <span class="Cnonalphakeyword">=</span> 
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t">f</a><span class="Cnonalphakeyword">,</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rx</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t -&gt; int -&gt; Pa.t * int">find_aux</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>father <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">x</a> <span class="Cin">in</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>father <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t">f</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rx</a>
+  
+<span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; int -&gt; int -&gt; t">union</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">x</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">y</a> <span class="Cnonalphakeyword">=</span> 
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rx</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; int -&gt; int">find</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">x</a> <span class="Cin">in</span>
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">ry</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; int -&gt; int">find</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">y</a> <span class="Cin">in</span>
+  <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rx</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">!=</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">ry</a> <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rxc</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t -&gt; int -&gt; int"><span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>get</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>c <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rx</a> <span class="Cin">in</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">ryc</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t -&gt; int -&gt; int"><span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>get</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>c <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">ry</a> <span class="Cin">in</span>
+    <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rxc</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">&gt;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">ryc</a> <span class="Cthen">then</span>
+      <span class="Cnonalphakeyword">{</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <span class="Cwith">with</span> father <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t -&gt; int -&gt; int -&gt; Pa.t"><span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>set</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>father <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">ry</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rx</a> <span class="Cnonalphakeyword">}</span>
+    <span class="Celse">else</span> <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rxc</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">&lt;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">ryc</a> <span class="Cthen">then</span>
+      <span class="Cnonalphakeyword">{</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <span class="Cwith">with</span> father <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t -&gt; int -&gt; int -&gt; Pa.t"><span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>set</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>father <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rx</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">ry</a> <span class="Cnonalphakeyword">}</span>
+    <span class="Celse">else</span>
+      <span class="Cnonalphakeyword">{</span> c <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t -&gt; int -&gt; int -&gt; Pa.t"><span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>set</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>c <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rx</a> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rxc</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">+</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">1</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+        father <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="Pa.t -&gt; int -&gt; int -&gt; Pa.t"><span class="Cconstructor">Pa</span><span class="Cnonalphakeyword">.</span>set</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>father <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">ry</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">rx</a> <span class="Cnonalphakeyword">}</span>
+  <span class="Cend">end</span> <span class="Celse">else</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a>
+
+
+<span class="Ccomment">(* tests *)</span>
+<span class="Ccomment">(***</span>
+<span class="Ccomment">let t = create 10</span>
+<span class="Ccomment">let () = assert (find t 0 &lt;&gt; find t 1)</span>
+<span class="Ccomment">let t = union t 0 1</span>
+<span class="Ccomment">let () = assert (find t 0 = find t 1)</span>
+<span class="Ccomment">let () = assert (find t 0 &lt;&gt; find t 2)</span>
+<span class="Ccomment">let t = union t 2 3 </span>
+<span class="Ccomment">let t = union t 0 3</span>
+<span class="Ccomment">let () = assert (find t 1 = find t 2)</span>
+<span class="Ccomment">let t = union t 4 4</span>
+<span class="Ccomment">let () = assert (find t 4 &lt;&gt; find t 3)</span>
+<span class="Ccomment">***)</span>
+
+
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

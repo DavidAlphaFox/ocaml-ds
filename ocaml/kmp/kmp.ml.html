@@ -1,0 +1,93 @@
+<html><body>
+<pre><font color="990000">(**************************************************************************)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  Copyright (C) Jean-Christophe Filliatre                               *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is free software; you can redistribute it and/or        *)</font>
+<font color="990000">(*  modify it under the terms of the GNU Library General Public           *)</font>
+<font color="990000">(*  License version 2, with the special exception on linking              *)</font>
+<font color="990000">(*  described in file LICENSE.                                            *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is distributed in the hope that it will be useful,      *)</font>
+<font color="990000">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</font>
+<font color="990000">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(**************************************************************************)</font>
+
+<font color="990000">(*s Knuth-Morris-Pratt implementation. The shift table is called [next] here</font>
+<font color="990000">    and stored in an array. *)</font>
+
+<font color="cc9900">open</font> <font color="0033cc">Printf</font>
+
+<font color="green">let</font> debug = ref false
+
+<font color="green">let</font> search p =
+  <font color="green">let</font> m = <font color="0033cc">String</font>.length p <font color="green">in</font>
+  <font color="green">let</font> next = <font color="0033cc">Array</font>.create m 0 <font color="green">in</font>
+  <font color="990000">(* initialization of [next] *)</font>
+  <font color="green">let</font> i = ref 1 <font color="green">in</font>
+  <font color="green">let</font> j = ref 0 <font color="green">in</font>
+  <font color="77aaaa">if</font> m > 1 <font color="77aaaa">then</font> <font color="990099">begin</font>
+    <font color="77aaaa">while</font> !i < m - 1 <font color="77aaaa">do</font>
+      <font color="77aaaa">if</font> p.[!i] = p.[!j] <font color="77aaaa">then</font> <font color="990099">begin</font>
+	i := !i + 1; j:= !j + 1; next.(!i) <- !j
+      <font color="990099">end</font> <font color="77aaaa">else</font>
+	<font color="77aaaa">if</font> !j = 0 <font color="77aaaa">then</font> i := !i + 1 <font color="990000">(* next[i] <- 0 *)</font> <font color="77aaaa">else</font> j := next.(!j)
+    <font color="77aaaa">done</font>
+  <font color="990099">end</font>;
+  <font color="990000">(* debug: dump of the [next] table *)</font>
+  <font color="77aaaa">if</font> !debug <font color="77aaaa">then</font> 
+    <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> m - 1 <font color="77aaaa">do</font> eprintf <font color="aa4444">"next[%d]=%d\n"</font> i next.(i) <font color="77aaaa">done</font>;
+  <font color="green">fun</font> t -> 
+    <font color="990000">(* search in [t] *)</font>
+    <font color="green">let</font> n = <font color="0033cc">String</font>.length t <font color="green">in</font>
+    i := 0;
+    j := 0;
+    <font color="77aaaa">while</font> !j < m <font color="77aaaa">&&</font> !i < n <font color="77aaaa">do</font>
+      <font color="77aaaa">if</font> t.[!i] = p.[!j] <font color="77aaaa">then</font> <font color="990099">begin</font>
+	i := !i + 1; j:= !j + 1
+      <font color="990099">end</font> <font color="77aaaa">else</font>
+	<font color="77aaaa">if</font> !j = 0 <font color="77aaaa">then</font> i := !i + 1 <font color="77aaaa">else</font> j := next.(!j)
+    <font color="77aaaa">done</font>;
+    <font color="77aaaa">if</font> !j = m <font color="77aaaa">then</font> !i - m <font color="77aaaa">else</font> <font color="red">raise</font> <font color="0033cc">Not_found</font>
+
+<font color="990000">(*s Functorial interface. *)</font>
+
+<font color="green">module</font> <font color="green">type</font> <font color="0033cc">STRING</font> = <font color="990099">sig</font>
+  <font color="green">type</font> t 
+  <font color="green">type</font> char
+  <font color="green">val</font> length : t -> int
+  <font color="green">val</font> get : t -> int -> char
+<font color="990099">end</font>
+
+<font color="green">module</font> <font color="0033cc">Make</font>(<font color="0033cc">P</font> : <font color="0033cc">STRING</font>)(<font color="0033cc">T</font> : <font color="0033cc">STRING</font> <font color="77aaaa">with</font> <font color="green">type</font> char = <font color="0033cc">P</font>.char) = <font color="990099">struct</font>
+
+  <font color="green">let</font> search p =
+    <font color="green">let</font> m = <font color="0033cc">P</font>.length p <font color="green">in</font>
+    <font color="green">let</font> next = <font color="0033cc">Array</font>.create m 0 <font color="green">in</font>
+    <font color="990000">(* initialization of [next] *)</font>
+    <font color="green">let</font> i = ref 1 <font color="green">in</font>
+    <font color="green">let</font> j = ref 0 <font color="green">in</font>
+    <font color="77aaaa">if</font> m > 1 <font color="77aaaa">then</font> <font color="990099">begin</font>
+      <font color="77aaaa">while</font> !i < m - 1 <font color="77aaaa">do</font>
+	<font color="77aaaa">if</font> <font color="0033cc">P</font>.get p !i = <font color="0033cc">P</font>.get p !j <font color="77aaaa">then</font> <font color="990099">begin</font>
+	  i := !i + 1; j:= !j + 1; next.(!i) <- !j
+	<font color="990099">end</font> <font color="77aaaa">else</font>
+	  <font color="77aaaa">if</font> !j = 0 <font color="77aaaa">then</font> i := !i + 1 <font color="77aaaa">else</font> j := next.(!j)
+      <font color="77aaaa">done</font>
+    <font color="990099">end</font>;
+    <font color="green">fun</font> t ->
+      <font color="990000">(* search in [t] *)</font>
+      <font color="green">let</font> n = <font color="0033cc">T</font>.length t <font color="green">in</font>
+      i := 0;
+      j := 0;
+      <font color="77aaaa">while</font> !j < m <font color="77aaaa">&&</font> !i < n <font color="77aaaa">do</font>
+	<font color="77aaaa">if</font> <font color="0033cc">T</font>.get t !i = <font color="0033cc">P</font>.get p !j <font color="77aaaa">then</font> <font color="990099">begin</font>
+	  i := !i + 1; j:= !j + 1
+	<font color="990099">end</font> <font color="77aaaa">else</font>
+	  <font color="77aaaa">if</font> !j = 0 <font color="77aaaa">then</font> i := !i + 1 <font color="77aaaa">else</font> j := next.(!j)
+      <font color="77aaaa">done</font>;
+      <font color="77aaaa">if</font> !j = m <font color="77aaaa">then</font> !i - m <font color="77aaaa">else</font> <font color="red">raise</font> <font color="0033cc">Not_found</font>
+
+<font color="990099">end</font>
+</pre></body></html>

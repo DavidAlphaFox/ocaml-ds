@@ -1,0 +1,155 @@
+<html><body>
+<pre>
+<font color="cc9900">open</font> <font color="0033cc">Graphics</font>
+
+<font color="green">let</font> col = 20
+<font color="green">let</font> lig = 10
+<font color="green">let</font> pas = 30
+
+<font color="green">let</font> () =
+  open_graph (<font color="0033cc">Printf</font>.sprintf <font color="aa4444">" %dx%d"</font> (pas * col) (pas * lig));
+  set_color black;
+  <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> col - 1 <font color="77aaaa">do</font>
+    <font color="green">let</font> x = i * pas <font color="green">in</font>
+    moveto x 0; lineto x (pas * lig);
+  <font color="77aaaa">done</font>;
+  <font color="77aaaa">for</font> j = 0 <font color="77aaaa">to</font> lig - 1 <font color="77aaaa">do</font>
+    <font color="green">let</font> y = j * pas <font color="green">in</font>
+    moveto 0 y; lineto (pas * col) y
+  <font color="77aaaa">done</font>
+
+<font color="green">let</font> () = at_exit close_graph
+
+<font color="green">type</font> cell = 
+  <font color="77aaaa">|</font> <font color="0033cc">Cache</font> <font color="green">of</font> bool * bool <font color="990000">(* bombe / drapeau *)</font>
+  <font color="77aaaa">|</font> <font color="0033cc">Decouvert</font>
+
+<font color="green">let</font> cells = <font color="0033cc">Array</font>.create_matrix col lig (<font color="0033cc">Cache</font> (false,false))
+
+<font color="green">let</font> cell i j = cells.(i).(j)
+
+<font color="green">let</font> nbb = 20
+
+<font color="green">let</font> bombe i j = <font color="77aaaa">match</font> cell i j <font color="77aaaa">with</font>
+  <font color="77aaaa">|</font> <font color="0033cc">Cache</font> (b,_) -> b
+  <font color="77aaaa">|</font> <font color="0033cc">Decouvert</font> -> false
+
+<font color="green">let</font> () = 
+  <font color="0033cc">Random</font>.self_init ();
+  <font color="green">let</font> k = ref 0 <font color="green">in</font>
+  <font color="77aaaa">while</font> !k < nbb <font color="77aaaa">do</font>
+    <font color="green">let</font> i = <font color="0033cc">Random</font>.int col <font color="green">in</font>
+    <font color="green">let</font> j = <font color="0033cc">Random</font>.int lig <font color="green">in</font>
+    <font color="77aaaa">if</font> not (bombe i j) <font color="77aaaa">then</font> <font color="990099">begin</font>
+      cells.(i).(j) <- <font color="0033cc">Cache</font> (true, false);
+      incr k
+    <font color="990099">end</font>
+  <font color="77aaaa">done</font>
+
+<font color="green">let</font> colorie c i j =
+  set_color c;
+  <font color="green">let</font> x = i * pas + 2 <font color="green">in</font>
+  <font color="green">let</font> y = j * pas + 2 <font color="green">in</font>
+  fill_rect x y (pas - 4) (pas - 4)
+    
+<font color="green">let</font> gris = rgb 200 200 200
+
+<font color="green">let</font> () =
+  <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> col - 1 <font color="77aaaa">do</font>
+    <font color="77aaaa">for</font> j = 0 <font color="77aaaa">to</font> lig - 1 <font color="77aaaa">do</font>
+      colorie gris i j
+    <font color="77aaaa">done</font>
+  <font color="77aaaa">done</font>
+
+<font color="green">let</font> nb_drapeaux = ref 0
+<font color="green">let</font> nb_decouvert = ref 0
+
+<font color="green">exception</font> <font color="0033cc">Perdu</font>
+<font color="green">exception</font> <font color="0033cc">Gagne</font>
+
+<font color="green">let</font> autour i j f =
+  <font color="green">let</font> f i' j' = <font color="77aaaa">if</font> i' >= 0 <font color="77aaaa">&&</font> i' < col <font color="77aaaa">&&</font> j' >= 0 <font color="77aaaa">&&</font> j' < lig <font color="77aaaa">then</font> f i' j' <font color="green">in</font>
+  f (i-1) j;
+  f (i-1) (j+1);
+  f i (j+1);
+  f (i+1) (j+1);
+  f (i+1) j;
+  f (i+1) (j-1);
+  f i (j-1);
+  f (i-1) (j-1)
+
+<font color="green">let</font> <font color="green">rec</font> decouvre i j = 
+  incr nb_decouvert;
+  colorie white i j;
+  <font color="green">let</font> n = ref 0 <font color="green">in</font>
+  autour i j (<font color="green">fun</font> i' j' -> <font color="77aaaa">if</font> bombe i' j' <font color="77aaaa">then</font> incr n);
+  cells.(i).(j) <- <font color="0033cc">Decouvert</font>;
+  <font color="77aaaa">if</font> !n > 0 <font color="77aaaa">then</font> <font color="990099">begin</font> 
+    set_color black;
+    moveto (i * pas + pas/3) (j * pas + pas/3);
+    draw_char (<font color="0033cc">Char</font>.chr (<font color="0033cc">Char</font>.code <font color="aa4444">'0'</font> + !n))
+  <font color="990099">end</font> <font color="77aaaa">else</font> 
+    autour i j decouvre_si_cache
+
+<font color="green">and</font> decouvre_si_cache i j = <font color="77aaaa">match</font> cell i j <font color="77aaaa">with</font>
+  <font color="77aaaa">|</font> <font color="0033cc">Cache</font> _ -> decouvre i j 
+  <font color="77aaaa">|</font> <font color="0033cc">Decouvert</font> -> ()
+
+<font color="green">let</font> click (x,y) =
+  ignore (wait_next_event [<font color="0033cc">Button_up</font>]);
+  <font color="green">let</font> i = x / pas <font color="green">in</font>
+  <font color="green">let</font> j = y / pas <font color="green">in</font>
+  <font color="77aaaa">match</font> cell i j <font color="77aaaa">with</font>
+    <font color="77aaaa">|</font> <font color="0033cc">Cache</font> (true, _) -> <font color="red">raise</font> <font color="0033cc">Perdu</font>
+    <font color="77aaaa">|</font> <font color="0033cc">Cache</font> (false, _) -> decouvre i j
+    <font color="77aaaa">|</font> <font color="0033cc">Decouvert</font> -> ()
+
+<font color="green">let</font> dessine_drapeau i j =
+  <font color="green">let</font> x = i * pas <font color="green">in</font>
+  <font color="green">let</font> y = j * pas <font color="green">in</font>
+  set_color red;
+  fill_poly [<font color="77aaaa">|</font> x+2, y+2; x+pas-4,y+pas/2; x+2,y+pas-4 <font color="77aaaa">|</font>]
+
+<font color="green">let</font> pose_drapeau (x,y) =
+  <font color="green">let</font> i = x / pas <font color="green">in</font>
+  <font color="green">let</font> j = y / pas <font color="green">in</font>
+  <font color="77aaaa">match</font> cell i j <font color="77aaaa">with</font>
+    <font color="77aaaa">|</font> <font color="0033cc">Cache</font> (b, false) -> 
+	dessine_drapeau i j; incr nb_drapeaux; cells.(i).(j) <- <font color="0033cc">Cache</font> (b, true)
+    <font color="77aaaa">|</font> <font color="0033cc">Cache</font> (b, true) -> 
+	colorie gris i j; decr nb_drapeaux; cells.(i).(j) <- <font color="0033cc">Cache</font> (b, false)
+    <font color="77aaaa">|</font> <font color="0033cc">Decouvert</font> -> ()
+
+<font color="green">let</font> dessine_bombe i j =
+  <font color="green">let</font> x = i * pas <font color="green">in</font>
+  <font color="green">let</font> y = j * pas <font color="green">in</font>
+  set_color blue;
+  fill_circle (x+pas/2) (y+pas/2) (pas/2-5)
+
+<font color="green">let</font> revele () =
+  <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> col - 1 <font color="77aaaa">do</font>
+    <font color="77aaaa">for</font> j = 0 <font color="77aaaa">to</font> lig - 1 <font color="77aaaa">do</font>
+      <font color="77aaaa">if</font> bombe i j <font color="77aaaa">then</font> dessine_bombe i j
+    <font color="77aaaa">done</font>
+  <font color="77aaaa">done</font>;
+  ignore (wait_next_event [<font color="0033cc">Key_pressed</font>])
+
+<font color="green">let</font> () = 
+  <font color="77aaaa">try</font>
+    <font color="77aaaa">while</font> true <font color="77aaaa">do</font>
+      <font color="green">let</font> st = wait_next_event [<font color="0033cc">Button_down</font>; <font color="0033cc">Key_pressed</font>] <font color="green">in</font>
+      <font color="77aaaa">if</font> st.button <font color="77aaaa">then</font> click (mouse_pos ());
+      <font color="77aaaa">if</font> st.keypressed <font color="77aaaa">then</font> <font color="990099">begin</font>
+	<font color="green">let</font> c = st.key <font color="green">in</font>
+	<font color="77aaaa">if</font> c = <font color="aa4444">'q'</font> <font color="77aaaa">then</font> <font color="red">raise</font> <font color="0033cc">Exit</font> <font color="77aaaa">else</font> pose_drapeau (mouse_pos ())
+      <font color="990099">end</font>;
+      <font color="77aaaa">if</font> !nb_drapeaux = nbb <font color="77aaaa">&&</font> !nb_drapeaux + !nb_decouvert = col * lig <font color="77aaaa">then</font> 
+	<font color="red">raise</font> <font color="0033cc">Gagne</font>
+    <font color="77aaaa">done</font>
+  <font color="77aaaa">with</font> 
+    <font color="77aaaa">|</font> <font color="0033cc">Perdu</font> -> revele (); print_endline <font color="aa4444">"perdu"</font>; exit 0
+    <font color="77aaaa">|</font> <font color="0033cc">Gagne</font> -> revele (); print_endline <font color="aa4444">"gagné"</font>; exit 0
+    <font color="77aaaa">|</font> <font color="0033cc">Exit</font> -> exit 0
+
+
+</pre></body></html>

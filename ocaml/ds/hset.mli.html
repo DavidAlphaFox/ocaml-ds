@@ -1,0 +1,166 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+hset.mli</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="hset.mli"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(*i $Id$ i*)</span>
+
+<span class="Ccomment">(*s Sets of hash-consed values, implemented as Patricia trees. </span>
+<span class="Ccomment">    See the modules [Hashcons] and [Ptset]. *)</span>
+
+<span class="Ctype">type</span> 'a t
+
+<span class="Ctype">type</span> 'a elt <span class="Cnonalphakeyword">=</span> 'a <span class="Cconstructor">Hashcons</span><span class="Cnonalphakeyword">.</span>hash_consed
+
+<span class="Cval">val</span> empty : 'a t
+
+<span class="Cval">val</span> is_empty : 'a t <span class="Cnonalphakeyword">-&gt;</span> bool
+
+<span class="Cval">val</span> mem : 'a elt <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> bool
+
+<span class="Cval">val</span> add : 'a elt <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t
+
+<span class="Cval">val</span> singleton : 'a elt <span class="Cnonalphakeyword">-&gt;</span> 'a t
+
+<span class="Cval">val</span> remove : 'a elt <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t
+
+<span class="Cval">val</span> union : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t
+
+<span class="Cval">val</span> subset : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> bool
+
+<span class="Cval">val</span> inter : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t
+
+<span class="Cval">val</span> diff : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t
+
+<span class="Cval">val</span> equal : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> bool
+
+<span class="Cval">val</span> compare : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> int
+
+<span class="Cval">val</span> elements : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a elt list
+
+<span class="Cval">val</span> choose : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a elt
+
+<span class="Cval">val</span> cardinal : 'a t <span class="Cnonalphakeyword">-&gt;</span> int
+
+<span class="Cval">val</span> iter : <span class="Cnonalphakeyword">(</span>'a elt <span class="Cnonalphakeyword">-&gt;</span> unit<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> unit
+
+<span class="Cval">val</span> fold : <span class="Cnonalphakeyword">(</span>'a elt <span class="Cnonalphakeyword">-&gt;</span> 'b <span class="Cnonalphakeyword">-&gt;</span> 'b<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> 'b <span class="Cnonalphakeyword">-&gt;</span> 'b
+
+<span class="Cval">val</span> for_all : <span class="Cnonalphakeyword">(</span>'a elt <span class="Cnonalphakeyword">-&gt;</span> bool<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> bool
+
+<span class="Cval">val</span> exists : <span class="Cnonalphakeyword">(</span>'a elt <span class="Cnonalphakeyword">-&gt;</span> bool<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> bool
+
+<span class="Cval">val</span> filter : <span class="Cnonalphakeyword">(</span>'a elt <span class="Cnonalphakeyword">-&gt;</span> bool<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t
+
+<span class="Cval">val</span> partition : <span class="Cnonalphakeyword">(</span>'a elt <span class="Cnonalphakeyword">-&gt;</span> bool<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">*</span> 'a t
+
+<span class="Ccomment">(*s Warning: [min_elt] and [max_elt] are linear w.r.t. the size of the</span>
+<span class="Ccomment">    set. In other words, [min_elt t] is barely more efficient than [fold</span>
+<span class="Ccomment">    min t (choose t)]. *)</span>
+
+<span class="Cval">val</span> min_elt : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a elt
+<span class="Cval">val</span> max_elt : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a elt
+
+<span class="Ccomment">(*s Additional functions not appearing in the signature [Set.S] from ocaml</span>
+<span class="Ccomment">    standard library. *)</span>
+
+<span class="Ccomment">(* [intersect u v] determines if sets [u] and [v] have a non-empty </span>
+<span class="Ccomment">   intersection. *)</span> 
+
+<span class="Cval">val</span> intersect : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> bool
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

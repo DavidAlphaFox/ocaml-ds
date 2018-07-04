@@ -1,0 +1,57 @@
+<html><body>
+<pre><font color="990000">(**************************************************************************)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  Copyright (C) Jean-Christophe Filliatre                               *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is free software; you can redistribute it and/or        *)</font>
+<font color="990000">(*  modify it under the terms of the GNU Library General Public           *)</font>
+<font color="990000">(*  License version 2, with the special exception on linking              *)</font>
+<font color="990000">(*  described in file LICENSE.                                            *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is distributed in the hope that it will be useful,      *)</font>
+<font color="990000">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</font>
+<font color="990000">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(**************************************************************************)</font>
+
+<font color="990000">(*S Knuth-Morris-Pratt string search algorithm. *)</font>
+
+<font color="990000">(*s [search p t] searches the first occurrence of pattern</font>
+<font color="990000">    [p] in text [t]. It raises [Not_found] if [p] does not occur in [t].</font>
+<font color="990000">    Strings are 0-based. Both arguments can be empty.</font>
+<font color="990000">    If [p] is to be searched many times in different texts then a partial</font>
+<font color="990000">    application [search p] is more efficient (the shift table is computed</font>
+<font color="990000">    only once).</font>
+<font color="990000"></font>
+<font color="990000">    Complexity: if [m] is the length of [p] and [n] the length of [t] then</font>
+<font color="990000">    [search p t] runs in time $O(m+n)$ and uses $O(m)$ space.</font>
+<font color="990000">*)</font>
+
+<font color="green">val</font> search : string -> string -> int
+
+<font color="990000">(*s Functorial interface. Knuth-Morris-Pratt algorithm can be applied</font>
+<font color="990000">    to patterns and texts of any type using the following functor. </font>
+<font color="990000">    Patterns and texts may be of different types, as soon as the type of </font>
+<font color="990000">    characters is common. [length s] must return the length of [s], and </font>
+<font color="990000">    [get s i] must return the [i]-th character of [s] (starting from 0).</font>
+<font color="990000">    Equality on characters is supposed to be structural equality ([=]).</font>
+<font color="990000">*)</font>
+
+<font color="green">module</font> <font color="green">type</font> <font color="0033cc">STRING</font> = <font color="990099">sig</font>
+  <font color="green">type</font> t 
+  <font color="green">type</font> char
+  <font color="green">val</font> length : t -> int
+  <font color="green">val</font> get : t -> int -> char
+<font color="990099">end</font>
+
+<font color="green">module</font> <font color="0033cc">Make</font>(<font color="0033cc">P</font> : <font color="0033cc">STRING</font>)(<font color="0033cc">T</font> : <font color="0033cc">STRING</font> <font color="77aaaa">with</font> <font color="green">type</font> char = <font color="0033cc">P</font>.char) : <font color="990099">sig</font>
+
+  <font color="green">val</font> search : <font color="0033cc">P</font>.t -> <font color="0033cc">T</font>.t -> int
+
+<font color="990099">end</font>
+
+<font color="990000">(*s Debugging: setting the following boolean reference to [true] will</font>
+<font color="990000">    dump the shift table on error output. *)</font>
+
+<font color="green">val</font> debug : bool ref
+</pre></body></html>

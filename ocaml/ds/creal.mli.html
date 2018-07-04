@@ -1,0 +1,142 @@
+<html><body>
+<pre><font color="990000">(*</font>
+<font color="990000"> * Exact real arithmetic (Constructive reals).</font>
+<font color="990000"> * Copyright (C) 2000 Jean-Christophe FILLIATRE</font>
+<font color="990000"> * </font>
+<font color="990000"> * This software is free software; you can redistribute it and/or</font>
+<font color="990000"> * modify it under the terms of the GNU Library General Public</font>
+<font color="990000"> * License version 2, as published by the Free Software Foundation.</font>
+<font color="990000"> * </font>
+<font color="990000"> * This software is distributed in the hope that it will be useful,</font>
+<font color="990000"> * but WITHOUT ANY WARRANTY; without even the implied warranty of</font>
+<font color="990000"> * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.</font>
+<font color="990000"> * </font>
+<font color="990000"> * See the GNU Library General Public License version 2 for more details</font>
+<font color="990000"> * (enclosed in the file LGPL).</font>
+<font color="990000"> *)</font>
+
+<font color="990000">(*i $Id: creal.mli,v 1.22 2005/10/26 09:25:06 filliatr Exp $ i*)</font>
+
+<font color="990000">(*s {\bf Constructive reals} are implemented by the following abstract</font>
+<font color="990000">    datatype [t]. If [x] is a constructive real, then the function call</font>
+<font color="990000">    [approx x n] returns an approximation of [x] up to $4^{-n}$, as</font>
+<font color="990000">    an arbitrary precision integer $x_n$ such that $|4^n\cdot x - x_n| < 1$. *)</font>
+
+<font color="cc9900">open</font> <font color="0033cc">Gmp</font>
+
+<font color="green">type</font> t
+
+<font color="green">val</font> approx : t -> int -> <font color="0033cc">Z</font>.t
+
+<font color="green">val</font> msd : t -> int
+
+<font color="990000">(*s Basic operations. *)</font>
+
+<font color="green">val</font> add : t -> t -> t
+<font color="green">val</font> neg : t -> t
+<font color="green">val</font> sub : t -> t -> t
+
+<font color="green">val</font> abs : t -> t
+
+<font color="green">val</font> mul : t -> t -> t
+<font color="green">val</font> inv : t -> t
+<font color="green">val</font> div : t -> t -> t
+
+<font color="green">val</font> pow_int : t -> int -> t
+<font color="green">val</font> root : int -> t -> t
+
+<font color="green">val</font> sqrt : t -> t
+
+<font color="990000">(*s Transcendental functions. [log ~base:x y] is $\log_x(y)$. *)</font>
+
+<font color="green">val</font> ln : t -> t
+<font color="green">val</font> log : base:t -> t -> t
+
+<font color="green">val</font> exp : t -> t
+<font color="green">val</font> pow : t -> t -> t
+
+<font color="990000">(*s Trigonometric functions. *)</font>
+
+<font color="green">val</font> sin : t -> t
+<font color="green">val</font> cos : t -> t
+<font color="green">val</font> tan : t -> t
+
+<font color="green">val</font> arcsin : t -> t
+<font color="green">val</font> arccos : t -> t
+<font color="green">val</font> arctan : t -> t
+
+<font color="990000">(*s [arctan_reciproqual n] is $\arctan(1/n)$, but is more efficient than</font>
+<font color="990000">    using [arctan]. *)</font>
+
+<font color="green">val</font> arctan_reciproqual : int -> t
+
+<font color="990000">(*s Hyperbolic functions. *)</font>
+
+<font color="green">val</font> sinh : t -> t
+<font color="green">val</font> cosh : t -> t
+<font color="green">val</font> tanh : t -> t
+
+<font color="green">val</font> arcsinh : t -> t
+<font color="green">val</font> arccosh : t -> t
+<font color="green">val</font> arctanh : t -> t
+
+<font color="990000">(*s Some constants. *)</font>
+
+<font color="green">val</font> zero : t
+<font color="green">val</font> one : t
+<font color="green">val</font> two : t
+
+<font color="green">val</font> pi : t
+<font color="green">val</font> half_pi : t
+
+<font color="green">val</font> e : t
+
+<font color="990000">(*s Comparisons. [cmp] is absolute comparison: it may not terminate and only</font>
+<font color="990000">    returns [-1] or [+1]. [rel_cmp] is relative comparison, up to $4^{-k}$,</font>
+<font color="990000">    and it returns [-1], [0] or [+1]. *)</font>
+
+<font color="green">val</font> cmp : t -> t -> int
+<font color="green">val</font> rel_cmp : int -> t -> t -> int
+
+<font color="green">val</font> min : t -> t -> t
+<font color="green">val</font> max : t -> t -> t
+
+<font color="990000">(*s Coercions. [to_q] and [to_float] expect a precision. [to_float x</font>
+<font color="990000">    n] returns the best floating point representation of the rational</font>
+<font color="990000">    $\ap{x}{n} / 4^n$. [of_string] expects a base as second argument. *)</font>
+
+<font color="green">val</font> of_int : int -> t
+<font color="green">val</font> of_z : <font color="0033cc">Z</font>.t -> t
+<font color="green">val</font> of_q : <font color="0033cc">Q</font>.t -> t
+<font color="green">val</font> of_float : float -> t
+<font color="green">val</font> of_string : ?radix:int -> string -> t
+
+<font color="green">val</font> to_float : t -> int -> float
+<font color="green">val</font> to_q : t -> int -> <font color="0033cc">Q</font>.t
+
+<font color="990000">(*s Coercion to type [string]. Given a decimal precision [p],</font>
+<font color="990000">    [to_string x p] returns a decimal approximation [d] of [x] with</font>
+<font color="990000">    either [p] digits such that $|d - x| < 10^{-p}$, or [p+1] digits</font>
+<font color="990000">    such that $|d - x| < 10^{-p-1}$.</font>
+<font color="990000"></font>
+<font color="990000">    [to_beautiful_string] returns the same decimal number but with</font>
+<font color="990000">    digits packed 5 by 5. *)</font>
+
+<font color="green">val</font> to_string : t -> int -> string
+<font color="green">val</font> to_beautiful_string : t -> int -> string
+
+<font color="990000">(*s Format pretty-printer. *)</font>
+
+<font color="green">val</font> print : <font color="0033cc">Format</font>.formatter -> t -> unit
+<font color="green">val</font> set_print_precision : int -> unit
+
+<font color="990000">(*s Infix notations. *)</font>
+
+<font color="green">module</font> <font color="0033cc">Infixes</font> : <font color="990099">sig</font>
+  <font color="green">val</font> ( +! ) : t -> t -> t
+  <font color="green">val</font> ( -! ) : t -> t -> t
+  <font color="green">val</font> ( *! ) : t -> t -> t
+  <font color="green">val</font> ( /! ) : t -> t -> t
+<font color="990099">end</font>
+
+</pre></body></html>

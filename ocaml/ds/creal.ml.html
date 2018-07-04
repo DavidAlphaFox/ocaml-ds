@@ -1,0 +1,776 @@
+<html><body>
+<pre><font color="990000">(*</font>
+<font color="990000"> * Exact real arithmetic (Constructive reals).</font>
+<font color="990000"> * Copyright (C) 2000 Jean-Christophe FILLIATRE</font>
+<font color="990000"> * </font>
+<font color="990000"> * This software is free software; you can redistribute it and/or</font>
+<font color="990000"> * modify it under the terms of the GNU Library General Public</font>
+<font color="990000"> * License version 2, as published by the Free Software Foundation.</font>
+<font color="990000"> * </font>
+<font color="990000"> * This software is distributed in the hope that it will be useful,</font>
+<font color="990000"> * but WITHOUT ANY WARRANTY; without even the implied warranty of</font>
+<font color="990000"> * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.</font>
+<font color="990000"> * </font>
+<font color="990000"> * See the GNU Library General Public License version 2 for more details</font>
+<font color="990000"> * (enclosed in the file LGPL).</font>
+<font color="990000"> *)</font>
+
+<font color="990000">(*i $Id: creal.ml,v 1.28 2002/07/23 09:13:23 filliatr Exp $ i*)</font>
+
+<font color="990000">(*i*)</font>
+<font color="cc9900">open</font> <font color="0033cc">Gmp</font>
+<font color="990000">(*i*)</font>
+
+<font color="990000">(*s This module implements constructive reals (exact real numbers),</font>
+<font color="990000">    following the algorithms given in Valérie Ménissier-Morain's </font>
+<font color="990000">    thesis (\small\verb!http://www-calfor.lip6.fr/~vmm/!).</font>
+<font color="990000">    In the following, pages refer to this document. *)</font>
+
+<font color="990000">(*s {\bf Representation.} A constructive real is represented by an</font>
+<font color="990000">    approximation function (field [approximate]).  If $x$ is a real</font>
+<font color="990000">    number, its approximation function applied to an integer $n$ (in</font>
+<font color="990000">    type [int]) returns an integer $\ap{x}{n}$ (in type [Z.t]) such</font>
+<font color="990000">    that $|4^n\cdot x - \ap{x}{n}| < 1$.</font>
+<font color="990000"></font>
+<font color="990000">    For efficiency, we add a field [cache] to keep the best</font>
+<font color="990000">    approximation computed so far.  (Notice that it is safe to use</font>
+<font color="990000">    type [int] for the number of digits, since an integer with a</font>
+<font color="990000">    number of digits exceeding the capacity of machine integers would</font>
+<font color="990000">    exceed the memory capacity.) </font>
+<font color="990000"></font>
+<font color="990000">    The field [msd] is a cache for the most significant digit </font>
+<font color="990000">    (see section~\ref{msd} below). *)</font>
+
+<font color="green">type</font> t = {
+  <font color="green">mutable</font> cache : (int * <font color="0033cc">Z</font>.t) option;
+  <font color="green">mutable</font> msd : int option;
+  approximate : int -> <font color="0033cc">Z</font>.t }
+
+<font color="green">let</font> create f = { cache = <font color="0033cc">None</font>; msd = <font color="0033cc">None</font>; approximate = f }
+
+<font color="990000">(*s Computing the approximation of [x] to precision [n] is easy:</font>
+<font color="990000">    either we have already computed a better approximation and the</font>
+<font color="990000">    result is just a ``shift'' of that value (Property 6 page 46), or</font>
+<font color="990000">    we compute [x.approximate n] and we cache its result before</font>
+<font color="990000">    returning it. *)</font>
+
+<font color="green">let</font> fdiv_Bexp z n = 
+  <font color="77aaaa">if</font> n == 0 <font color="77aaaa">then</font> 
+    z 
+  <font color="77aaaa">else</font> <font color="77aaaa">if</font> n > 0 <font color="77aaaa">then</font> 
+    <font color="0033cc">Z</font>.fdiv_q_2exp z (n + n) 
+  <font color="77aaaa">else</font> 
+    <font color="0033cc">Z</font>.mul2exp z (-(n + n))
+
+<font color="990000">(*i</font>
+<font color="990000">let max_prec = ref 0</font>
+<font color="990000">let _ = at_exit (fun () -> Printf.printf "max_prec=%d\n" !max_prec)</font>
+<font color="990000">i*)</font>
+
+<font color="green">let</font> approx x n =
+  <font color="green">let</font> compute () =
+    <font color="green">let</font> z = x.approximate n <font color="green">in</font> x.cache <- <font color="0033cc">Some</font> (n,z); z
+  <font color="green">in</font>
+  <font color="77aaaa">match</font> x.cache <font color="77aaaa">with</font>
+    <font color="77aaaa">|</font> <font color="0033cc">None</font> -> compute ()
+    <font color="77aaaa">|</font> <font color="0033cc">Some</font> (m,a) -> <font color="77aaaa">if</font> n <= m <font color="77aaaa">then</font> fdiv_Bexp a (m - n) <font color="77aaaa">else</font> compute ()
+
+<font color="990000">(*s Some useful constants in [Z.t] and [Q.t]. *)</font>
+
+<font color="green">let</font> z_zero = <font color="0033cc">Z</font>.from_int 0
+<font color="green">let</font> z_one = <font color="0033cc">Z</font>.from_int 1
+<font color="green">let</font> z_two = <font color="0033cc">Z</font>.from_int 2
+<font color="green">let</font> z_three = <font color="0033cc">Z</font>.from_int 3
+<font color="green">let</font> z_four = <font color="0033cc">Z</font>.from_int 4
+
+<font color="green">let</font> q_half = <font color="0033cc">Q</font>.from_ints 1 2
+<font color="green">let</font> q_zero = <font color="0033cc">Q</font>.from_ints 0 1
+<font color="green">let</font> q_one = <font color="0033cc">Q</font>.from_ints 1 1
+<font color="green">let</font> q_two = <font color="0033cc">Q</font>.from_ints 2 1
+<font color="green">let</font> q_four = <font color="0033cc">Q</font>.from_ints 4 1
+
+<font color="990000">(*s Utility functions over [Z.t] and [Q.t]. *)</font>
+
+<font color="green">let</font> z_gt x y = <font color="0033cc">Z</font>.cmp x y > 0
+<font color="green">let</font> z_le x y = <font color="0033cc">Z</font>.cmp x y <= 0
+
+<font color="green">let</font> z_between lb x up = z_le lb x <font color="77aaaa">&&</font> z_le x up
+
+<font color="green">let</font> z_even x = (<font color="0033cc">Z</font>.cmp (<font color="0033cc">Z</font>.cdiv_r_ui x 2) z_zero) == 0
+
+<font color="green">let</font> q_max q1 q2 = <font color="77aaaa">if</font> <font color="0033cc">Q</font>.cmp q1 q2 >= 0 <font color="77aaaa">then</font> q1 <font color="77aaaa">else</font> q2
+
+<font color="green">let</font> q_abs q = <font color="77aaaa">if</font> <font color="0033cc">Q</font>.sgn q < 0 <font color="77aaaa">then</font> <font color="0033cc">Q</font>.neg q <font color="77aaaa">else</font> q
+
+<font color="990000">(*s Roundings. Floor, ceil and Gau\ss\ rounding over [Q.t]. The Gau\ss\</font>
+<font color="990000">    rounding of $x$, written $\gauss{x}$, is the (only) integer such that</font>
+<font color="990000">    $\gauss{x} - \half \le x < \gauss{x} + \half$. *)</font>
+
+<font color="green">let</font> q_floor q = <font color="0033cc">Z</font>.fdiv_q (<font color="0033cc">Q</font>.get_num q) (<font color="0033cc">Q</font>.get_den q)
+
+<font color="green">let</font> q_ceil q = <font color="0033cc">Z</font>.cdiv_q (<font color="0033cc">Q</font>.get_num q) (<font color="0033cc">Q</font>.get_den q)
+
+<font color="green">let</font> gauss_round q = 
+  <font color="green">let</font> q' = <font color="0033cc">Q</font>.add q q_half <font color="green">in</font>
+  <font color="0033cc">Z</font>.fdiv_q (<font color="0033cc">Q</font>.get_num q') (<font color="0033cc">Q</font>.get_den q')
+
+<font color="green">let</font> gauss_round_z_over_4 z = <font color="0033cc">Z</font>.fdiv_q_2exp (<font color="0033cc">Z</font>.add_ui z 2) 2
+
+<font color="990000">(*s Addition (Algorithm 2 page 50). </font>
+<font color="990000">    We have $\ap{(x+y)}{n} = \lfloor(\ap{x}{n+1}+\ap{y}{n+1})/4\rceil$. </font>
+<font color="990000">    We do not try to cache a value for [x+y] given the cached values for</font>
+<font color="990000">    [x] and [y], if any, since it may require some computation (some shifts).</font>
+<font color="990000">    Moreover, this is exactly what will be done by the first call to</font>
+<font color="990000">    [approx] on [x+y] if the precision asked is less than $min(x,y)-2$. *)</font>
+
+<font color="green">let</font> add x y =
+  create 
+    (<font color="green">function</font> n -> 
+       <font color="green">let</font> sn = succ n <font color="green">in</font>
+       gauss_round_z_over_4 (<font color="0033cc">Z</font>.add (approx x sn) (approx y sn)))
+
+<font color="green">let</font> (+!) = add
+
+<font color="990000">(*s Negation is immediate and subtraction is the composition of</font>
+<font color="990000">    addition and negation (Algorithm 3 page 51). The cached value for</font>
+<font color="990000">    [x] is immediatly cached in [-x] (at no cost). *)</font>
+
+<font color="green">let</font> cache_neg = <font color="green">function</font>
+  <font color="77aaaa">|</font> <font color="0033cc">None</font> -> <font color="0033cc">None</font>
+  <font color="77aaaa">|</font> <font color="0033cc">Some</font> (n,a) -> <font color="0033cc">Some</font> (n, <font color="0033cc">Z</font>.neg a)
+
+<font color="green">let</font> neg x = 
+  { cache = cache_neg x.cache;
+    msd = x.msd;
+    approximate = <font color="green">function</font> n -> <font color="0033cc">Z</font>.neg (approx x n) }
+
+<font color="green">let</font> sub x y = x +! (neg y)
+
+<font color="green">let</font> (-!) = sub
+
+<font color="990000">(*s Absolute value. *)</font>
+
+<font color="green">let</font> abs x = create (<font color="green">function</font> n -> <font color="0033cc">Z</font>.abs (approx x n))
+
+<font color="990000">(*s Most significant digit ([msd], Definition 9 page 47). \label{msd}</font>
+<font color="990000">    It is defined by $$\msd{x} =  \min\ \{n\in Z ~|~ |x_n|>1 \}$$</font>
+<font color="990000">    Note that it does not terminate in 0. *)</font>
+
+<font color="green">let</font> compute_msd x =
+  <font color="green">let</font> <font color="green">rec</font> look_up n = 
+    <font color="990000">(* $|\ap{x}{n-1}| \le 1$ *)</font>
+    <font color="green">let</font> xn = <font color="0033cc">Z</font>.abs (approx x n) <font color="green">in</font>
+    <font color="77aaaa">if</font> z_gt xn z_one <font color="77aaaa">then</font> n <font color="77aaaa">else</font> look_up (succ n)
+  <font color="green">and</font> look_down n =
+    <font color="990000">(* $|\ap{x}{n+1}| > 1$ *)</font>
+    <font color="green">let</font> xn = <font color="0033cc">Z</font>.abs (approx x n) <font color="green">in</font>
+    <font color="77aaaa">if</font> z_gt xn z_one <font color="77aaaa">then</font> look_down (pred n) <font color="77aaaa">else</font> succ n
+  <font color="green">in</font>
+  <font color="green">let</font> x0 = <font color="0033cc">Z</font>.abs (approx x 0) <font color="green">in</font>
+  <font color="77aaaa">if</font> z_gt x0 z_one <font color="77aaaa">then</font> look_down (-1) <font color="77aaaa">else</font> look_up 1
+
+<font color="green">let</font> msd x = <font color="77aaaa">match</font> x.msd <font color="77aaaa">with</font>
+  <font color="77aaaa">|</font> <font color="0033cc">None</font> -> <font color="green">let</font> m = compute_msd x <font color="green">in</font> x.msd <- <font color="0033cc">Some</font> m; m
+  <font color="77aaaa">|</font> <font color="0033cc">Some</font> m -> m
+
+<font color="990000">(*s Version of [msd] with a maximal bound on the iteration process</font>
+<font color="990000">    (used in function [mul] to avoid non-termination when</font>
+<font color="990000">    multiplicating by 0). *)</font>
+
+<font color="green">let</font> msd_with_max m x =
+  <font color="green">let</font> <font color="green">rec</font> look_up n = 
+    <font color="77aaaa">if</font> n >= m <font color="77aaaa">then</font> n <font color="77aaaa">else</font>
+    <font color="green">let</font> xn = <font color="0033cc">Z</font>.abs (approx x n) <font color="green">in</font>
+    <font color="77aaaa">if</font> z_gt xn z_one <font color="77aaaa">then</font> n <font color="77aaaa">else</font> look_up (succ n)
+  <font color="green">and</font> look_down n =
+    <font color="green">let</font> xn = <font color="0033cc">Z</font>.abs (approx x n) <font color="green">in</font>
+    <font color="77aaaa">if</font> z_gt xn z_one <font color="77aaaa">then</font> look_down (pred n) <font color="77aaaa">else</font> succ n
+  <font color="green">in</font>
+  <font color="green">let</font> x0 = <font color="0033cc">Z</font>.abs (approx x 0) <font color="green">in</font>
+  <font color="77aaaa">if</font> z_gt x0 z_one <font color="77aaaa">then</font> look_down (-1) <font color="77aaaa">else</font> look_up 1
+
+<font color="990000">(*s [mul_Bexp] and [div_Bexp] respectively multiplies and divides</font>
+<font color="990000">    an integer by $B^n$ (works whatever the sign of [n] is). </font>
+<font color="990000">    The result is a rational. *)</font>
+
+<font color="green">let</font> mul_Bexp z n =
+  <font color="77aaaa">if</font> n == 0 <font color="77aaaa">then</font> 
+    <font color="0033cc">Q</font>.from_z z 
+  <font color="77aaaa">else</font> <font color="77aaaa">if</font> n > 0 <font color="77aaaa">then</font> 
+    <font color="0033cc">Q</font>.from_z (<font color="0033cc">Z</font>.mul2exp z (n + n))
+  <font color="77aaaa">else</font> 
+    <font color="0033cc">Q</font>.from_zs z (<font color="0033cc">Z</font>.mul2exp z (-(n + n)))
+
+<font color="green">let</font> bexp n = mul_Bexp z_one n
+
+<font color="green">let</font> div_Bexp z n =
+  <font color="77aaaa">if</font> n == 0 <font color="77aaaa">then</font> 
+    <font color="0033cc">Q</font>.from_z z 
+  <font color="77aaaa">else</font> <font color="77aaaa">if</font> n > 0 <font color="77aaaa">then</font>
+    <font color="0033cc">Q</font>.from_zs z (<font color="0033cc">Z</font>.mul2exp z_one (n + n))
+  <font color="77aaaa">else</font>
+    <font color="0033cc">Q</font>.from_z (<font color="0033cc">Z</font>.mul2exp z (-(n + n)))
+
+<font color="990000">(*s Multiplication (Algorithm 4 page 51). *)</font>
+
+<font color="green">let</font> mul x y =
+  create 
+    (<font color="green">function</font> n ->
+       <font color="green">let</font> d = (n + 2) / 2 <font color="green">in</font>
+       <font color="green">let</font> msd' = msd_with_max (n + 3 - d) <font color="green">in</font>
+       <font color="green">let</font> px = max (n - (msd' y) + 3) d
+       <font color="green">and</font> py = max (n - (msd' x) + 3) d <font color="green">in</font>
+       <font color="green">let</font> xpx = approx x px 
+       <font color="green">and</font> ypy = approx y py <font color="green">in</font>
+       <font color="green">let</font> z = gauss_round (div_Bexp (<font color="0033cc">Z</font>.add_ui (<font color="0033cc">Z</font>.abs (<font color="0033cc">Z</font>.mul xpx ypy)) 1) 
+			      (px + py - n)) <font color="green">in</font>
+       <font color="77aaaa">if</font> <font color="0033cc">Z</font>.sgn xpx = <font color="0033cc">Z</font>.sgn ypy <font color="77aaaa">then</font> z <font color="77aaaa">else</font> <font color="0033cc">Z</font>.neg z)
+
+<font color="green">let</font> ( *! ) = mul
+
+<font color="990000">(*s Inverse (Algorithm 5 page 53) and division. *)</font>
+
+<font color="green">let</font> inv x =
+   create
+     (<font color="green">function</font> n ->
+	<font color="green">let</font> msdx = msd x <font color="green">in</font>
+	<font color="77aaaa">if</font> n <= -msdx <font color="77aaaa">then</font>
+	  z_zero
+	<font color="77aaaa">else</font> 
+	  <font color="green">let</font> k = n + 2 * msdx + 1 <font color="green">in</font>
+	  <font color="green">let</font> xk = approx x k <font color="green">in</font>
+	  <font color="green">let</font> q = <font color="0033cc">Q</font>.div (bexp (k + n)) (<font color="0033cc">Q</font>.from_z xk) <font color="green">in</font>
+	  <font color="77aaaa">if</font> z_gt xk z_one <font color="77aaaa">then</font> q_ceil q <font color="77aaaa">else</font> q_floor q)
+
+<font color="green">let</font> div x y = x *! (inv y)
+
+<font color="green">let</font> (/!) = div
+
+<font color="990000">(*s Square root (Algorithm 6 page 56). *)</font>
+
+<font color="green">let</font> sqrt x =
+  create
+    (<font color="green">function</font> n ->
+       <font color="green">let</font> x2n = approx x (n + n) <font color="green">in</font>
+       <font color="77aaaa">if</font> <font color="0033cc">Z</font>.sgn x2n < 0 <font color="77aaaa">then</font> invalid_arg <font color="aa4444">"Creal.sqrt"</font>;
+       <font color="0033cc">Z</font>.sqrt x2n)
+
+<font color="990000">(*s Coercions from integers and rationals (Algorithm 1 page 49)</font>
+<font color="990000">    and coercion to rationals. *)</font>
+
+<font color="green">let</font> fmul_Bexp q n =
+  <font color="77aaaa">if</font> n == 0 <font color="77aaaa">then</font>
+    q_floor q
+  <font color="77aaaa">else</font> <font color="77aaaa">if</font> n > 0 <font color="77aaaa">then</font>
+    <font color="0033cc">Z</font>.fdiv_q (<font color="0033cc">Z</font>.mul2exp (<font color="0033cc">Q</font>.get_num q) (n + n)) (<font color="0033cc">Q</font>.get_den q)
+  <font color="77aaaa">else</font> 
+    q_floor (<font color="0033cc">Q</font>.div q (<font color="0033cc">Q</font>.from_z (<font color="0033cc">Z</font>.mul2exp z_one (-(n + n)))))
+
+<font color="green">let</font> of_z z = 
+  { cache = <font color="0033cc">Some</font> (0,z);
+    msd = <font color="0033cc">None</font>;
+    approximate = <font color="green">function</font> n -> fmul_Bexp (<font color="0033cc">Q</font>.from_z z) n }
+
+<font color="green">let</font> of_q q = create (fmul_Bexp q)
+
+<font color="green">let</font> to_q x n =
+  <font color="green">let</font> xn = approx x n <font color="green">in</font>
+  <font color="0033cc">Q</font>.div (<font color="0033cc">Q</font>.from_z xn) (bexp n)
+
+<font color="green">let</font> of_int n = of_z (<font color="0033cc">Z</font>.from_int n)
+
+<font color="green">let</font> zero = of_int 0
+<font color="green">let</font> one = of_int 1
+<font color="green">let</font> two = of_int 2
+<font color="green">let</font> four = of_int 4
+
+<font color="990000">(*s Power of a real to a small integer. *)</font>
+
+<font color="green">let</font> <font color="green">rec</font> pow_int x n =
+  <font color="77aaaa">if</font> n == 0 <font color="77aaaa">then</font>
+    one
+  <font color="77aaaa">else</font> <font color="77aaaa">if</font> n < 0 <font color="77aaaa">then</font>
+    inv (pow_int x (-n))
+  <font color="77aaaa">else</font> 
+    <font color="green">let</font> y = pow_int (mul x x) (n / 2) <font color="green">in</font>
+    <font color="77aaaa">if</font> n mod 2 == 0 <font color="77aaaa">then</font> y <font color="77aaaa">else</font> mul y x
+
+<font color="green">let</font> <font color="green">rec</font> pow_z x n =
+  <font color="green">let</font> c = <font color="0033cc">Z</font>.cmp_si n 0 <font color="green">in</font>
+  <font color="77aaaa">if</font> c == 0 <font color="77aaaa">then</font>
+    one
+  <font color="77aaaa">else</font> <font color="77aaaa">if</font> c < 0 <font color="77aaaa">then</font>
+    inv (pow_z x (<font color="0033cc">Z</font>.neg n))
+  <font color="77aaaa">else</font> 
+    <font color="green">let</font> y = pow_z (mul x x) (<font color="0033cc">Z</font>.fdiv_q_2exp n 1) <font color="green">in</font>
+    <font color="77aaaa">if</font> <font color="0033cc">Z</font>.cmp_si (<font color="0033cc">Z</font>.dmod_ui n 2) 0 == 0 <font color="77aaaa">then</font> y <font color="77aaaa">else</font> mul y x
+
+<font color="990000">(*s Alternate power series. The following function</font>
+<font color="990000">    [alternate_powerserie_] computes $B^p S$ where $S$ is the partial</font>
+<font color="990000">    sum of an alternate power serie such that the remainder is less</font>
+<font color="990000">    than $B^{-p}$, that is $S = \sum_{i=0}^{i=n}(-1)^ia_i$ with</font>
+<font color="990000">    $a_{n+1} < B^{-p}$. The alternate power serie is given by its</font>
+<font color="990000">    first term $a_0$ and a function [next] such that $a_{n+1} =</font>
+<font color="990000">    \textit{next} ~ n ~ a_n$. *)</font> 
+
+<font color="green">let</font> alternate_powerserie_ a0 next p =
+  <font color="green">let</font> eps = bexp (-p) <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> sum s n an = 
+    <font color="990000">(* [s] is already the sum up to $a_n$ *)</font>
+    <font color="green">let</font> asn = next n an <font color="green">in</font>
+    <font color="77aaaa">if</font> <font color="0033cc">Q</font>.cmp (q_abs asn) eps < 0 <font color="77aaaa">then</font> 
+      s 
+    <font color="77aaaa">else</font> 
+      sum (<font color="77aaaa">if</font> n mod 2 == 0 <font color="77aaaa">then</font> <font color="0033cc">Q</font>.sub s asn <font color="77aaaa">else</font> <font color="0033cc">Q</font>.add s asn) (n + 1) asn
+  <font color="green">in</font>
+  <font color="0033cc">Q</font>.div (sum a0 0 a0) eps
+
+<font color="990000">(*s A specialized function to compute $atan(1/m)$ where [m] is a small</font>
+<font color="990000">    integer. *)</font>
+
+<font color="green">let</font> arctan_reciproqual m =
+  <font color="green">let</font> m_inverse = <font color="0033cc">Q</font>.from_ints 1 m <font color="green">in</font>
+  <font color="green">let</font> m_inverse_square = <font color="0033cc">Q</font>.mul m_inverse m_inverse <font color="green">in</font>
+  create
+    (<font color="green">fun</font> n ->
+       <font color="green">let</font> eps = bexp (-n) <font color="green">in</font>
+       <font color="green">let</font> <font color="green">rec</font> sum s sign k p = 
+	 <font color="990000">(* [s] is already the sum up to $a_k$ *)</font>
+	 <font color="green">let</font> p' = <font color="0033cc">Q</font>.mul p m_inverse_square <font color="green">in</font>
+	 <font color="green">let</font> t = <font color="0033cc">Q</font>.mul p' (<font color="0033cc">Q</font>.from_ints 1 (k + 2)) <font color="green">in</font>
+	 <font color="77aaaa">if</font> <font color="0033cc">Q</font>.cmp t eps < 0 <font color="77aaaa">then</font> 
+	   s 
+	 <font color="77aaaa">else</font> 
+	   sum (<font color="77aaaa">if</font> sign <font color="77aaaa">then</font> <font color="0033cc">Q</font>.add s t <font color="77aaaa">else</font> <font color="0033cc">Q</font>.sub s t) (not sign) (k + 2) p'
+       <font color="green">in</font>
+       fmul_Bexp (sum m_inverse false 1 m_inverse) n)
+
+
+<font color="990000">(*s $\pi$ is defined using [arctan], with the well-known formula (Algorithm</font>
+<font color="990000">    13 page 68)</font>
+<font color="990000">    $$\frac{\pi}{4} = 12 \arctan\left(\frac{1}{18}\right)</font>
+<font color="990000">                    +  8 \arctan\left(\frac{1}{57}\right)</font>
+<font color="990000">                    -  5 \arctan\left(\frac{1}{239}\right)$$ *)</font>
+
+<font color="green">let</font> pi = 
+     (of_int 48 *! arctan_reciproqual 18)
+  +! (of_int 32 *! arctan_reciproqual 57)
+  -! (of_int 20 *! arctan_reciproqual 239)
+
+<font color="990000">(*i</font>
+<font color="990000">let pi =  (of_int 16 *! arctan_reciproqual 5)</font>
+<font color="990000">       -! (of_int 4  *! arctan_reciproqual 239)</font>
+<font color="990000">i*)</font>
+
+<font color="green">let</font> pi_over_2 = pi /! two
+
+<font color="990000">(*s Arctangent (Algorithm 12 page 64). *)</font>
+
+<font color="green">let</font> arctan_ x = 
+  <font color="green">let</font> square_x = <font color="0033cc">Q</font>.mul x x <font color="green">in</font>
+  <font color="green">let</font> next n an = 
+    <font color="0033cc">Q</font>.mul (<font color="0033cc">Q</font>.mul an square_x) (<font color="0033cc">Q</font>.from_ints (2 * n + 1) (2 * n + 3)) 
+  <font color="green">in</font>
+  alternate_powerserie_ x next
+
+<font color="green">let</font> arctan_def x =
+  create
+    (<font color="green">function</font> n ->
+       <font color="green">let</font> k = max 0 (n + 1) <font color="green">in</font>
+       <font color="green">let</font> xk = approx x k <font color="green">in</font>
+       <font color="77aaaa">if</font> <font color="0033cc">Z</font>.cmp_si xk 0 == 0 <font color="77aaaa">then</font> 
+	 z_zero
+       <font color="77aaaa">else</font>
+	 <font color="green">let</font> q = <font color="0033cc">Q</font>.from_zs xk (<font color="0033cc">Z</font>.pow_ui_ui 4 k) <font color="green">in</font>
+	 q_floor (<font color="0033cc">Q</font>.add 
+		    (<font color="0033cc">Q</font>.div (<font color="0033cc">Q</font>.add (arctan_ q (n + 1)) q_one) q_four)
+		    (<font color="0033cc">Q</font>.div
+		       (bexp (n + k)) 
+		       (<font color="0033cc">Q</font>.add (bexp (2 * n + 2))
+			  (<font color="0033cc">Q</font>.from_z (<font color="0033cc">Z</font>.add (<font color="0033cc">Z</font>.mul xk xk) xk))))))
+
+<font color="990000">(*s The above definition of [arctan] converges very slowly when $|x|\ge 1$.</font>
+<font color="990000">    The convergence is accelerated using the following identities:</font>
+<font color="990000">    \begin{displaymath}</font>
+<font color="990000">      \begin{array}{lll}</font>
+<font color="990000">      \arctan(x) </font>
+<font color="990000">        & = -\pi/2 - \arctan(1/x) & \mbox{ when }x<-1 \\</font>
+<font color="990000">        & = -\pi/4 - \arctan((1-x^2)/(2x))/2 & \mbox{ when }x\approx-1 \\</font>
+<font color="990000">        & = +\pi/4 - \arctan((1-x^2)/(2x))/2 & \mbox{ when }x\approx1 \\</font>
+<font color="990000">        & = +\pi/2 - \arctan(1/x) & \mbox{ when }x>1</font>
+<font color="990000">      \end{array}</font>
+<font color="990000">    \end{displaymath} </font>
+<font color="990000">    We use the approximation of $x$ at order 1 to discriminate between the </font>
+<font color="990000">    cases. *)</font>
+
+<font color="green">let</font> arctan x =
+  <font color="green">let</font> x1 = approx x 1 <font color="green">in</font>
+  <font color="green">let</font> cmp_x1_neg_4 = <font color="0033cc">Z</font>.cmp_si x1 (-4) <font color="green">in</font>
+  <font color="green">let</font> cmp_x1_4 = <font color="0033cc">Z</font>.cmp_si x1 4 <font color="green">in</font>
+  <font color="77aaaa">if</font> cmp_x1_neg_4 < 0 <font color="77aaaa">then</font>
+    <font color="990000">(* $x < -1$ *)</font>
+    neg (pi_over_2 +! arctan_def (inv x))
+  <font color="77aaaa">else</font> <font color="77aaaa">if</font> cmp_x1_neg_4 == 0 <font color="77aaaa">then</font>
+    <font color="990000">(* $x$ close to $-1$ *)</font>
+    neg (pi_over_2 +! arctan_def ((one -! x *! x) /! (two *! x))) /! two
+  <font color="77aaaa">else</font> <font color="77aaaa">if</font> cmp_x1_4 == 0 <font color="77aaaa">then</font>
+    <font color="990000">(* $x$ close to 1 *)</font>
+    (pi_over_2 -! arctan_def ((one -! x *! x) /! (two *! x))) /! two
+  <font color="77aaaa">else</font> <font color="77aaaa">if</font> cmp_x1_4 > 0 <font color="77aaaa">then</font>
+    <font color="990000">(* $x > 1$ *)</font>
+    pi_over_2 -! arctan_def (inv x)
+  <font color="77aaaa">else</font> 
+    <font color="990000">(* $x$ close to 0 *)</font>
+    arctan_def x
+
+<font color="990000">(*s Arcsinus and arccosinus are derived from arctangent (Algorithm 14</font>
+<font color="990000">    page 69). We use $\arcsin(x)+\arccos(x)=\pi/2$ to avoid</font>
+<font color="990000">    non-termination of $\arcsin(1)$ and $\arccos(0)$. *)</font>
+
+<font color="green">let</font> arcsin_def x = arctan (x /! (sqrt (one -! (x *! x))))
+
+<font color="green">let</font> arccos_def x = arctan ((sqrt (one -! (x *! x))) /! x)
+
+<font color="green">let</font> arcsin x = 
+  <font color="green">let</font> x1 = approx x 1 <font color="green">in</font>
+  <font color="77aaaa">if</font> z_le (<font color="0033cc">Z</font>.abs x1) z_two <font color="77aaaa">then</font> arcsin_def x <font color="77aaaa">else</font> pi_over_2 -! arccos_def x
+
+<font color="green">let</font> arccos x = 
+  <font color="green">let</font> x1 = approx x 1 <font color="green">in</font>
+
+ <font color="77aaaa">if</font> z_le (<font color="0033cc">Z</font>.abs x1) z_two <font color="77aaaa">then</font> pi_over_2 -! arcsin_def x <font color="77aaaa">else</font> arccos_def x 
+
+<font color="990000">(*s Sinus (Algorithm 15 page 69). *)</font>
+
+<font color="green">let</font> <font color="green">rec</font> sin_ x p = 
+  <font color="77aaaa">if</font> <font color="0033cc">Q</font>.cmp x q_zero >= 0 <font color="77aaaa">then</font>
+    <font color="green">let</font> square_x = <font color="0033cc">Q</font>.mul x x <font color="green">in</font>
+    <font color="green">let</font> next n an = 
+      <font color="0033cc">Q</font>.mul (<font color="0033cc">Q</font>.mul (<font color="0033cc">Q</font>.mul an square_x) (<font color="0033cc">Q</font>.from_ints 1 (2 * n + 2))) 
+	    (<font color="0033cc">Q</font>.from_ints 1 (2 * n + 3))
+    <font color="green">in</font>
+    alternate_powerserie_ x next p
+  <font color="77aaaa">else</font>
+    <font color="0033cc">Q</font>.neg (sin_ (<font color="0033cc">Q</font>.neg x) p)
+
+<font color="green">let</font> sin x =
+  <font color="green">let</font> p = <font color="0033cc">Z</font>.sub_ui (approx (x /! pi) 0) 1 <font color="green">in</font>
+  <font color="green">let</font> theta = <font color="77aaaa">if</font> <font color="0033cc">Z</font>.cmp_si p 0 == 0 <font color="77aaaa">then</font> x <font color="77aaaa">else</font> x -! ((of_z p) *! pi) <font color="green">in</font>
+  <font color="green">let</font> z = pi_over_2 <font color="green">in</font>
+  create
+    (<font color="green">fun</font> n ->
+       <font color="green">let</font> k = max 2 (n + 2) <font color="green">in</font>
+       <font color="green">let</font> zk = approx z k <font color="green">in</font>
+       <font color="green">let</font> twozk = <font color="0033cc">Z</font>.mul2exp zk 1 <font color="green">in</font>
+       <font color="green">let</font> threezk = <font color="0033cc">Z</font>.mul_ui zk 3 <font color="green">in</font>
+       <font color="green">let</font> fourzk = <font color="0033cc">Z</font>.mul2exp zk 2 <font color="green">in</font>
+       <font color="green">let</font> thetak = approx theta k <font color="green">in</font>
+       <font color="77aaaa">if</font> (z_between z_zero thetak z_one) <font color="77aaaa">||</font>
+	  (z_between (<font color="0033cc">Z</font>.sub_ui fourzk 4) thetak (<font color="0033cc">Z</font>.add_ui fourzk 4)) <font color="77aaaa">||</font>
+	  (z_between (<font color="0033cc">Z</font>.sub_ui twozk 2) thetak (<font color="0033cc">Z</font>.add_ui twozk 2)) <font color="77aaaa">then</font>
+         z_zero
+       <font color="77aaaa">else</font> <font color="77aaaa">if</font> z_between (<font color="0033cc">Z</font>.sub_ui zk 1) thetak (<font color="0033cc">Z</font>.add_ui zk 1) <font color="77aaaa">then</font>
+	 <font color="green">let</font> bn = <font color="0033cc">Z</font>.mul2exp z_one (n + n) <font color="green">in</font>
+	 <font color="77aaaa">if</font> z_even p <font color="77aaaa">then</font> bn <font color="77aaaa">else</font> <font color="0033cc">Z</font>.neg bn
+       <font color="77aaaa">else</font> <font color="77aaaa">if</font> z_between (<font color="0033cc">Z</font>.sub_ui threezk 3) thetak (<font color="0033cc">Z</font>.add_ui threezk 3) <font color="77aaaa">then</font>
+	 <font color="green">let</font> bn = <font color="0033cc">Z</font>.mul2exp z_one (n + n) <font color="green">in</font>
+	 <font color="77aaaa">if</font> z_even p <font color="77aaaa">then</font> <font color="0033cc">Z</font>.neg bn <font color="77aaaa">else</font> bn
+       <font color="77aaaa">else</font> 
+         <font color="green">let</font> q = <font color="0033cc">Q</font>.from_zs thetak (<font color="0033cc">Z</font>.pow_ui_ui 4 k) <font color="green">in</font>
+	 <font color="green">let</font> s = sin_ q (n + 2) <font color="green">in</font>
+	 <font color="green">let</font> bw = <font color="0033cc">Q</font>.from_ints 16 1 <font color="green">in</font>
+	 <font color="green">let</font> bn_k = bexp (n - k) <font color="green">in</font>
+	 <font color="green">let</font> r = 
+	   <font color="77aaaa">if</font> (z_between z_two thetak (<font color="0033cc">Z</font>.sub_ui zk 2)) <font color="77aaaa">||</font>
+              (z_between (<font color="0033cc">Z</font>.add_ui zk 2) thetak (<font color="0033cc">Z</font>.sub_ui twozk 3)) <font color="77aaaa">then</font>
+	     q_floor (<font color="0033cc">Q</font>.add (<font color="0033cc">Q</font>.div (<font color="0033cc">Q</font>.add s q_one) bw) bn_k)
+	   <font color="77aaaa">else</font>
+	     q_ceil (<font color="0033cc">Q</font>.sub (<font color="0033cc">Q</font>.div (<font color="0033cc">Q</font>.sub s q_one) bw) bn_k)
+	 <font color="green">in</font>
+	 <font color="77aaaa">if</font> z_even p <font color="77aaaa">then</font> r <font color="77aaaa">else</font> <font color="0033cc">Z</font>.neg r)
+
+<font color="990000">(*s Cosinus and tangent are derived from sinus (Algorithm 16 page 78). *)</font>
+
+<font color="green">let</font> cos x = sin (pi_over_2 -! x)
+
+<font color="green">let</font> tan x = (sin x) /! (cos x)
+
+<font color="990000">(*s Euler constant [e]. *)</font>
+
+<font color="green">type</font> sum_cache = {
+  <font color="green">mutable</font> order : int;
+  <font color="green">mutable</font> sum : <font color="0033cc">Q</font>.t; <font color="990000">(* sum up to [order] *)</font>
+  <font color="green">mutable</font> term : <font color="0033cc">Q</font>.t; <font color="990000">(* last term $a_{order}$ *)</font>
+  <font color="green">mutable</font> prec : int
+}
+
+<font color="green">let</font> e =
+  <font color="green">let</font> e_cache = { order = 1; sum = q_two; term = q_one; prec = 0 } <font color="green">in</font>
+  create
+    (<font color="green">fun</font> p ->
+       <font color="77aaaa">if</font> p <= e_cache.prec <font color="77aaaa">then</font>
+	 fmul_Bexp e_cache.sum p
+       <font color="77aaaa">else</font>
+	 <font color="green">let</font> eps = bexp (-p) <font color="green">in</font>
+	 <font color="green">let</font> <font color="green">rec</font> sum s n an = 
+	   <font color="green">let</font> rn = <font color="0033cc">Q</font>.mul (<font color="0033cc">Q</font>.from_ints 1 n) an <font color="green">in</font>
+	   <font color="77aaaa">if</font> <font color="0033cc">Q</font>.cmp rn eps <= 0 <font color="77aaaa">then</font> <font color="990099">begin</font>
+	     e_cache.order <- n;
+	     e_cache.sum <- s;
+	     e_cache.term <- an;
+	     e_cache.prec <- p;
+	     fmul_Bexp s p 
+	   <font color="990099">end</font> <font color="77aaaa">else</font> 
+	     <font color="green">let</font> asn = <font color="0033cc">Q</font>.mul (<font color="0033cc">Q</font>.from_ints 1 (n + 1)) an <font color="green">in</font>
+	     sum (<font color="0033cc">Q</font>.add s asn) (n + 1) asn
+	 <font color="green">in</font>
+	 sum e_cache.sum e_cache.order e_cache.term)
+
+<font color="990000">(*s Natural logarithm (Algorithm 9 page 62). *)</font>
+
+<font color="green">let</font> ln_above_1 r =
+  <font color="green">let</font> y = <font color="0033cc">Q</font>.div (<font color="0033cc">Q</font>.sub r q_one) (<font color="0033cc">Q</font>.add r q_one) <font color="green">in</font>
+  <font color="green">let</font> y_square = <font color="0033cc">Q</font>.mul y y <font color="green">in</font>
+  <font color="green">let</font> one_minus_y_square = <font color="0033cc">Q</font>.sub q_one y_square <font color="green">in</font>
+  <font color="green">fun</font> n ->
+    <font color="green">let</font> eps = bexp (-n) <font color="green">in</font>
+    <font color="green">let</font> <font color="green">rec</font> sum s k p = 
+      <font color="990000">(* [s] is already the sum up to $a_k$ *)</font>
+      <font color="green">let</font> p' = <font color="0033cc">Q</font>.mul p y_square <font color="green">in</font>
+      <font color="green">let</font> t = <font color="0033cc">Q</font>.mul p' (<font color="0033cc">Q</font>.from_ints 1 (k + 2)) <font color="green">in</font>
+      <font color="77aaaa">if</font> <font color="0033cc">Q</font>.cmp (<font color="0033cc">Q</font>.div t one_minus_y_square) eps < 0 <font color="77aaaa">then</font> 
+	<font color="0033cc">Q</font>.mul q_two s 
+      <font color="77aaaa">else</font> 
+	sum (<font color="0033cc">Q</font>.add s t) (k + 2) p'
+    <font color="green">in</font>
+    <font color="0033cc">Q</font>.div (sum y 1 y) eps
+
+<font color="green">let</font> <font color="green">rec</font> ln_ r = 
+  <font color="77aaaa">if</font> <font color="0033cc">Q</font>.cmp r q_zero <= 0 <font color="77aaaa">then</font> invalid_arg <font color="aa4444">"Creal.ln"</font>;
+  <font color="green">let</font> cmp1 = <font color="0033cc">Q</font>.cmp r q_one <font color="green">in</font>
+  <font color="77aaaa">if</font> cmp1 < 0 <font color="77aaaa">then</font>
+    <font color="990000">(* $r < 1$ *)</font>
+    <font color="green">let</font> ln_inverse_r = ln_ (<font color="0033cc">Q</font>.inv r) <font color="green">in</font>
+    (<font color="green">fun</font> n -> <font color="0033cc">Q</font>.neg (ln_inverse_r n))
+  <font color="77aaaa">else</font> <font color="77aaaa">if</font> cmp1 == 0 <font color="77aaaa">then</font> 
+    <font color="990000">(* $r = 1$ *)</font>
+    (<font color="green">fun</font> n -> q_zero)
+  <font color="77aaaa">else</font> 
+    <font color="990000">(* $r > 1$ *)</font>
+    ln_above_1 r
+
+<font color="green">let</font> ln_4 = <font color="green">let</font> f = ln_above_1 q_four <font color="green">in</font> create (<font color="green">fun</font> n -> q_floor (f n))
+
+<font color="green">let</font> <font color="green">rec</font> ln x = 
+  <font color="green">let</font> msd_x = msd x <font color="green">in</font>
+  <font color="green">let</font> k = -msd_x + 1 <font color="green">in</font>
+  <font color="77aaaa">if</font> k != 0 <font color="77aaaa">then</font>
+    ln (x /! (of_q (bexp k))) +! (of_int k) *! ln_4
+  <font color="77aaaa">else</font>
+    create
+      (<font color="green">fun</font> n ->
+	 <font color="green">let</font> w = 2 - min 0 n <font color="green">in</font>
+	 <font color="green">let</font> k = n + msd_x + w <font color="green">in</font>
+	 <font color="green">let</font> xk = <font color="0033cc">Q</font>.from_z (approx x k) <font color="green">in</font>       
+	 <font color="green">let</font> q = <font color="0033cc">Q</font>.div xk (bexp k) <font color="green">in</font>
+	 q_floor (<font color="0033cc">Q</font>.add (<font color="0033cc">Q</font>.div (<font color="0033cc">Q</font>.add (ln_ q (n + w)) q_one) (bexp w))
+		        (<font color="0033cc">Q</font>.div (bexp n) xk)))
+
+<font color="green">let</font> log x y = ln y /! ln x
+
+<font color="990000">(*s Inverses of hyperbolic functions. *)</font>
+
+<font color="green">let</font> arcsinh x = ln (x +! sqrt (x *! x +! one))
+<font color="green">let</font> arccosh x = ln (x +! sqrt (x *! x -! one))
+<font color="green">let</font> arctanh x = ln ((one +! x) /! (one -! x)) /! two
+
+<font color="990000">(*s Exponential (Algorithm 7 page 57). *)</font>
+
+<font color="green">let</font> exp_neg_ r =
+  <font color="990000">(* $-1 \le r < 0$ *)</font>
+  <font color="green">let</font> r = q_abs r <font color="green">in</font>
+  <font color="green">let</font> next n an = <font color="0033cc">Q</font>.mul (<font color="0033cc">Q</font>.mul an r) (<font color="0033cc">Q</font>.from_ints 1 (n + 1)) <font color="green">in</font>
+  create (<font color="green">fun</font> n -> q_floor (alternate_powerserie_ q_one next n))
+
+<font color="green">let</font> exp_ r =
+  <font color="77aaaa">if</font> <font color="0033cc">Q</font>.cmp r q_zero == 0 <font color="77aaaa">then</font>
+    one
+  <font color="77aaaa">else</font>
+    <font color="green">let</font> s_floor_r = <font color="0033cc">Z</font>.add_ui (q_floor r) 1 <font color="green">in</font>
+    mul (pow_z e s_floor_r) (exp_neg_ (<font color="0033cc">Q</font>.sub r (<font color="0033cc">Q</font>.from_z s_floor_r)))
+
+<font color="green">let</font> exp x =
+  create
+    (<font color="green">fun</font> n ->
+       <font color="green">let</font> qbn = bexp n <font color="green">in</font>
+       <font color="green">let</font> bn = of_q qbn <font color="green">in</font>
+       <font color="green">let</font> invqbn = <font color="0033cc">Q</font>.inv qbn <font color="green">in</font>
+       <font color="green">let</font> one_plus_invqbn = <font color="0033cc">Q</font>.add q_one invqbn <font color="green">in</font>
+       <font color="green">let</font> test1 () =
+	 <font color="green">let</font> lsup = log four (of_int 7 /! ln ((bn +! one) /! (bn -! one))) <font color="green">in</font>
+	 <font color="green">let</font> l = <font color="0033cc">Z</font>.int_from (approx lsup 0) + 1 <font color="green">in</font>
+	 <font color="green">let</font> xl = approx x l <font color="green">in</font>
+	 <font color="green">let</font> log1 = q_floor (ln_ (<font color="0033cc">Q</font>.sub q_one invqbn) l) <font color="green">in</font>
+	 <font color="green">let</font> log2 = q_floor (ln_ one_plus_invqbn l) <font color="green">in</font>
+	 (<font color="0033cc">Z</font>.cmp (<font color="0033cc">Z</font>.add log1 z_two) xl < 0) <font color="77aaaa">&&</font>
+	 (<font color="0033cc">Z</font>.cmp xl (<font color="0033cc">Z</font>.sub log2 z_two) < 0)
+       <font color="green">in</font>
+       <font color="green">let</font> test2 () =
+	 <font color="green">let</font> x0 = approx x 0 <font color="green">in</font>
+	 <font color="green">let</font> m = <font color="0033cc">Z</font>.sub (q_floor (ln_ one_plus_invqbn 0)) z_two <font color="green">in</font>
+	 <font color="0033cc">Z</font>.cmp x0 m <= 0
+       <font color="green">in</font>
+       <font color="77aaaa">if</font> (n > 0 <font color="77aaaa">&&</font> test1 ()) <font color="77aaaa">||</font> (n <= 0 <font color="77aaaa">&&</font> test2 ()) <font color="77aaaa">then</font>
+	 fmul_Bexp q_one n
+       <font color="77aaaa">else</font> 
+	 <font color="green">let</font> msd_x = msd x <font color="green">in</font>
+	 <font color="green">let</font> clogBe = 
+	   <font color="77aaaa">if</font> <font color="0033cc">Z</font>.cmp (approx x msd_x) z_one >= 0 <font color="77aaaa">then</font> 
+	     <font color="0033cc">Q</font>.from_ints 577080 100000
+	   <font color="77aaaa">else</font> 
+	     <font color="0033cc">Q</font>.from_ints (-72134) 100000
+	 <font color="green">in</font>
+	 <font color="green">let</font> d2 = <font color="0033cc">Q</font>.div clogBe (bexp msd_x) <font color="green">in</font>
+	 <font color="green">let</font> p = max 0 (n + 1) <font color="green">in</font>
+	 <font color="green">let</font> d = q_max (<font color="0033cc">Q</font>.from_ints (-p) 1) d2 <font color="green">in</font>
+	 <font color="green">let</font> k2 = q_ceil (<font color="0033cc">Q</font>.add d (<font color="0033cc">Q</font>.from_ints 44732 100000)) <font color="green">in</font>
+	 <font color="green">let</font> k = max 1 (max msd_x (p + 1 + <font color="0033cc">Z</font>.int_from k2)) <font color="green">in</font>
+	 <font color="green">let</font> bk = bexp k <font color="green">in</font>
+	 <font color="green">let</font> xk = approx x k <font color="green">in</font>
+	 <font color="green">let</font> xkBk = <font color="0033cc">Q</font>.div (<font color="0033cc">Q</font>.from_z xk) bk <font color="green">in</font>
+	 <font color="green">let</font> exp_xkBk_p = approx (exp_ xkBk) p <font color="green">in</font>
+	 <font color="77aaaa">if</font> <font color="0033cc">Z</font>.cmp exp_xkBk_p z_zero <= 0 <font color="77aaaa">then</font>
+	   z_zero
+	 <font color="77aaaa">else</font> 
+	   q_ceil (<font color="0033cc">Q</font>.mul (<font color="0033cc">Q</font>.sub (<font color="0033cc">Q</font>.div (<font color="0033cc">Q</font>.from_z exp_xkBk_p) q_four) q_one)
+		         (<font color="0033cc">Q</font>.sub q_one (<font color="0033cc">Q</font>.inv bk))))
+
+<font color="green">let</font> pow x y = exp (y *! ln x)
+
+<font color="990000">(*s Hyperbolic functions. *)</font>
+
+<font color="green">let</font> sinh x = (exp x -! exp (neg x)) /! two
+
+<font color="green">let</font> cosh x = (exp x +! exp (neg x)) /! two
+
+<font color="green">let</font> tanh x = sinh x /! cosh x
+
+<font color="990000">(*s Comparisons. [cmp] is absolute comparison and [rel_cmp] is comparison</font>
+<font color="990000">    up to $4^{-k}$. *)</font>
+
+<font color="green">let</font> cmp x y =
+  <font color="green">let</font> <font color="green">rec</font> cmp_rec n =
+    <font color="green">let</font> xn = approx x n <font color="green">in</font>
+    <font color="green">let</font> yn = approx y n <font color="green">in</font>
+    <font color="77aaaa">if</font> z_gt (<font color="0033cc">Z</font>.add_ui xn 1) (<font color="0033cc">Z</font>.sub_ui yn 1) <font color="77aaaa">&&</font> 
+       z_gt (<font color="0033cc">Z</font>.add_ui yn 1) (<font color="0033cc">Z</font>.sub_ui xn 1) 
+    <font color="77aaaa">then</font>
+      cmp_rec (succ n)
+    <font color="77aaaa">else</font>
+      <font color="77aaaa">if</font> z_le (<font color="0033cc">Z</font>.add_ui xn 1) (<font color="0033cc">Z</font>.sub_ui yn 1) <font color="77aaaa">then</font> -1 <font color="77aaaa">else</font> 1
+  <font color="green">in</font>
+  cmp_rec 0
+
+<font color="green">let</font> rel_cmp k x y =
+  <font color="green">let</font> <font color="green">rec</font> cmp_rec n =
+    <font color="green">let</font> xn = approx x n <font color="green">in</font>
+    <font color="green">let</font> yn = approx y n <font color="green">in</font>
+    <font color="77aaaa">if</font> z_gt (<font color="0033cc">Z</font>.add_ui xn 1) (<font color="0033cc">Z</font>.sub_ui yn 1) <font color="77aaaa">&&</font> 
+       z_gt (<font color="0033cc">Z</font>.add_ui yn 1) (<font color="0033cc">Z</font>.sub_ui xn 1) <font color="77aaaa">&&</font> n <= k + 2
+    <font color="77aaaa">then</font>
+      cmp_rec (succ n)
+    <font color="77aaaa">else</font> <font color="77aaaa">if</font> z_le (<font color="0033cc">Z</font>.add_ui xn 1) (<font color="0033cc">Z</font>.sub_ui yn 1) <font color="77aaaa">then</font> 
+      -1 
+    <font color="77aaaa">else</font> <font color="77aaaa">if</font> z_le (<font color="0033cc">Z</font>.add_ui yn 1) (<font color="0033cc">Z</font>.sub_ui xn 1) <font color="77aaaa">then</font>
+      1
+    <font color="77aaaa">else</font>
+      0
+  <font color="green">in</font>
+  cmp_rec 0
+
+<font color="990000">(*s Coercions to and from type [float]. *)</font>
+
+<font color="green">let</font> of_float f = of_q (<font color="0033cc">Q</font>.from_float f)
+
+<font color="green">let</font> to_float x n = <font color="0033cc">Q</font>.float_from (to_q x n)
+
+<font color="990000">(*s Coercion to and from type [string]. *)</font>
+
+<font color="green">let</font> of_string s base =
+  <font color="77aaaa">try</font>
+    <font color="990099">begin</font>
+      <font color="77aaaa">try</font>
+	<font color="green">let</font> n = <font color="0033cc">String</font>.length s <font color="green">in</font>
+	<font color="green">let</font> p = <font color="0033cc">String</font>.index s <font color="aa4444">'.'</font> <font color="green">in</font>
+	<font color="green">let</font> dec = n - p - 1 <font color="green">in</font>
+	<font color="green">let</font> s' = (<font color="0033cc">String</font>.sub s 0 p) ^ (<font color="0033cc">String</font>.sub s (p + 1) dec) <font color="green">in</font>
+	of_q (<font color="0033cc">Q</font>.from_zs (<font color="0033cc">Z</font>.from_string_base base s') (<font color="0033cc">Z</font>.pow_ui_ui base dec))
+      <font color="77aaaa">with</font> <font color="0033cc">Not_found</font> -> 
+	of_z (<font color="0033cc">Z</font>.from_string_base base s)
+    <font color="990099">end</font>
+  <font color="77aaaa">with</font> <font color="0033cc">Invalid_argument</font> _ -> invalid_arg <font color="aa4444">"Creal.of_string"</font>
+
+<font color="990000">(*s Decimal approximation of [x] at order [p]. We look for an integer [n]</font>
+<font color="990000">    such that $|10^px - n| < 1/2$ i.e. the integer closest to</font>
+<font color="990000">    $10^px$. There is sometimes no such integer but then we can find a</font>
+<font color="990000">    decimal approximation at order [p+1]. </font>
+<font color="990000"></font>
+<font color="990000">    We first compute $y = 10^px$ and [approx y 3] i.e. an approximation</font>
+<font color="990000">    $y_3/64$ of $y$. Let $q$ and $r$ be the quotient and remainder of the</font>
+<font color="990000">    division $y_3/64$ such that $y_3 = 64q+r$ and $0\le r<63$. </font>
+<font color="990000">    If $r\le 31$ then $n$ is $q$; If $r\ge 33$ then $n$ is $q+1$;</font>
+<font color="990000">    Otherwise $10q+5$ is a decimal approximation of $x$ at order $p+1$. *)</font>
+
+<font color="green">let</font> to_string_aux x p = 
+  <font color="77aaaa">if</font> p < 0 <font color="77aaaa">then</font> invalid_arg <font color="aa4444">"Creal.to_string"</font>;
+  <font color="green">let</font> tenp = <font color="0033cc">Z</font>.pow_ui_ui 10 p <font color="green">in</font>
+  <font color="green">let</font> y = mul (of_z tenp) x <font color="green">in</font>
+  <font color="green">let</font> y3 = approx y 3 <font color="green">in</font>
+  <font color="green">let</font> q,r = <font color="0033cc">Z</font>.fdiv_qr_ui y3 64 <font color="green">in</font>
+  <font color="green">let</font> r = <font color="0033cc">Z</font>.int_from r <font color="green">in</font>
+  <font color="green">let</font> n,p = 
+    <font color="77aaaa">if</font> r <= 31 <font color="77aaaa">then</font> q, p
+    <font color="77aaaa">else</font> <font color="77aaaa">if</font> r >= 33 <font color="77aaaa">then</font> <font color="0033cc">Z</font>.add_ui q 1, p
+    <font color="77aaaa">else</font> <font color="0033cc">Z</font>.add_ui (<font color="0033cc">Z</font>.mul_ui q 10) 5, succ p
+  <font color="green">in</font>
+  <font color="green">let</font> ns = <font color="0033cc">Z</font>.string_from (<font color="0033cc">Z</font>.abs n) <font color="green">in</font>
+  <font color="green">let</font> lns = <font color="0033cc">String</font>.length ns <font color="green">in</font>
+  <font color="green">let</font> ins,dns = 
+    <font color="77aaaa">if</font> lns >= p+1 <font color="77aaaa">then</font>
+      <font color="0033cc">String</font>.sub ns 0 (lns - p), <font color="0033cc">String</font>.sub ns (lns - p) p
+    <font color="77aaaa">else</font>
+      <font color="aa4444">"0"</font>, <font color="0033cc">String</font>.make (p - lns) <font color="aa4444">'0'</font> ^ ns
+  <font color="green">in</font>
+  <font color="0033cc">Z</font>.sgn n, ins, dns
+
+<font color="green">let</font> to_string x p =
+  <font color="green">let</font> sgn,i,f = to_string_aux x p <font color="green">in</font>
+  (<font color="77aaaa">if</font> sgn < 0 <font color="77aaaa">then</font> <font color="aa4444">"-"</font> <font color="77aaaa">else</font> <font color="aa4444">""</font>) ^ i ^ <font color="aa4444">"."</font> ^ f
+
+<font color="990000">(*s Coercion to type [string] with digits packed 5 by 5. *)</font>
+
+<font color="green">let</font> string_concat = <font color="0033cc">String</font>.concat <font color="aa4444">""</font>
+
+<font color="green">let</font> beautiful s =
+  <font color="green">let</font> n = <font color="0033cc">String</font>.length s <font color="green">in</font>
+  <font color="green">let</font> eol i = <font color="77aaaa">if</font> (i + 5) mod 65 == 0 <font color="77aaaa">then</font> <font color="aa4444">"\n"</font> <font color="77aaaa">else</font> <font color="aa4444">" "</font> <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> cut i = 
+    <font color="0033cc">String</font>.sub s i (min 5 (n - i)) :: 
+    <font color="77aaaa">if</font> i < n - 5 <font color="77aaaa">then</font> eol i :: cut (i + 5) <font color="77aaaa">else</font> []
+  <font color="green">in</font>
+  string_concat (cut 0)
+
+<font color="green">let</font> to_beautiful_string x p =
+  <font color="green">let</font> sgn,i,f = to_string_aux x p <font color="green">in</font>
+  <font color="green">let</font> nl = <font color="77aaaa">if</font> <font color="0033cc">String</font>.length i + <font color="0033cc">String</font>.length f > 75 <font color="77aaaa">then</font> <font color="aa4444">"\n"</font> <font color="77aaaa">else</font> <font color="aa4444">""</font> <font color="green">in</font>
+  (<font color="77aaaa">if</font> sgn < 0 <font color="77aaaa">then</font> <font color="aa4444">"-"</font> <font color="77aaaa">else</font> <font color="aa4444">""</font>) ^ i ^ <font color="aa4444">"."</font> ^ nl ^ beautiful f
+
+
+<font color="green">module</font> <font color="0033cc">Infixes</font> = <font color="990099">struct</font>
+  <font color="green">let</font> (+!) = add
+  <font color="green">let</font> (-!) = sub
+  <font color="green">let</font> ( *! ) = mul
+  <font color="green">let</font> (/!) = div
+<font color="990099">end</font>
+
+</pre></body></html>

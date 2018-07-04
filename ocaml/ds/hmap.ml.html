@@ -1,0 +1,206 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+hmap.ml</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="hmap.ml"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(*i $Id$ i*)</span>
+
+<span class="Ccomment">(*s Maps of integers implemented as Patricia trees, following Chris</span>
+<span class="Ccomment">    Okasaki and Andrew Gill's paper {\em Fast Mergeable Integer Maps}</span>
+<span class="Ccomment">    ({\tt\small http://www.cs.columbia.edu/\~{}cdo/papers.html\#ml98maps}).</span>
+<span class="Ccomment">    See the documentation of module [Ptset] which is also based on the</span>
+<span class="Ccomment">    same data-structure. *)</span>
+
+<span class="Copen">open</span> <span class="Cconstructor">Hashcons</span>
+
+<span class="Ctype">type</span> 'a key <span class="Cnonalphakeyword">=</span> 'a hash_consed
+
+<span class="Ctype">type</span> <span class="Cnonalphakeyword">(</span>'a<span class="Cnonalphakeyword">,</span> 'b<span class="Cnonalphakeyword">)</span> t <span class="Cnonalphakeyword">=</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Empty</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cof">of</span> 'a key <span class="Cnonalphakeyword">*</span> 'b
+  <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cof">of</span> int <span class="Cnonalphakeyword">*</span> int <span class="Cnonalphakeyword">*</span> <span class="Cnonalphakeyword">(</span>'a<span class="Cnonalphakeyword">,</span> 'b<span class="Cnonalphakeyword">)</span> t <span class="Cnonalphakeyword">*</span> <span class="Cnonalphakeyword">(</span>'a<span class="Cnonalphakeyword">,</span> 'b<span class="Cnonalphakeyword">)</span> t
+
+<span class="Clet">let</span> empty <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Empty</span>
+
+<span class="Clet">let</span> zero_bit k m <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span>k <span class="Cland">land</span> m<span class="Cnonalphakeyword">)</span> == 0
+
+<span class="Clet">let</span> <span class="Crec">rec</span> mem k <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Empty</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cfalse">false</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>j<span class="Cnonalphakeyword">,</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> k<span class="Cnonalphakeyword">.</span>tag == j<span class="Cnonalphakeyword">.</span>tag
+  <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">,</span> m<span class="Cnonalphakeyword">,</span> l<span class="Cnonalphakeyword">,</span> r<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> mem k <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> zero_bit k<span class="Cnonalphakeyword">.</span>tag m <span class="Cthen">then</span> l <span class="Celse">else</span> r<span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> <span class="Crec">rec</span> find k <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Empty</span> <span class="Cnonalphakeyword">-&gt;</span> raise <span class="Cconstructor">Not_found</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>j<span class="Cnonalphakeyword">,</span>x<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cif">if</span> k<span class="Cnonalphakeyword">.</span>tag == j<span class="Cnonalphakeyword">.</span>tag <span class="Cthen">then</span> x <span class="Celse">else</span> raise <span class="Cconstructor">Not_found</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">,</span> m<span class="Cnonalphakeyword">,</span> l<span class="Cnonalphakeyword">,</span> r<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> find k <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> zero_bit k<span class="Cnonalphakeyword">.</span>tag m <span class="Cthen">then</span> l <span class="Celse">else</span> r<span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> lowest_bit x <span class="Cnonalphakeyword">=</span> x <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">-</span>x<span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> branching_bit p0 p1 <span class="Cnonalphakeyword">=</span> lowest_bit <span class="Cnonalphakeyword">(</span>p0 <span class="Clxor">lxor</span> p1<span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> mask p m <span class="Cnonalphakeyword">=</span> p <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span>m-1<span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> join <span class="Cnonalphakeyword">(</span>p0<span class="Cnonalphakeyword">,</span>t0<span class="Cnonalphakeyword">,</span>p1<span class="Cnonalphakeyword">,</span>t1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> branching_bit p0 p1 <span class="Cin">in</span>
+  <span class="Cif">if</span> zero_bit p0 m <span class="Cthen">then</span> 
+    <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>mask p0 m<span class="Cnonalphakeyword">,</span> m<span class="Cnonalphakeyword">,</span> t0<span class="Cnonalphakeyword">,</span> t1<span class="Cnonalphakeyword">)</span>
+  <span class="Celse">else</span> 
+    <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>mask p0 m<span class="Cnonalphakeyword">,</span> m<span class="Cnonalphakeyword">,</span> t1<span class="Cnonalphakeyword">,</span> t0<span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> match_prefix k p m <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span>mask k m<span class="Cnonalphakeyword">)</span> == p
+
+<span class="Clet">let</span> add k x t <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> ins <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+    <span class="Cbar">|</span> <span class="Cconstructor">Empty</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">,</span>x<span class="Cnonalphakeyword">)</span>
+    <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>j<span class="Cnonalphakeyword">,</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">)</span> <span class="Cas">as</span> t <span class="Cnonalphakeyword">-&gt;</span> 
+        <span class="Cif">if</span> j<span class="Cnonalphakeyword">.</span>tag == k<span class="Cnonalphakeyword">.</span>tag <span class="Cthen">then</span> 
+          <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">,</span>x<span class="Cnonalphakeyword">)</span> 
+        <span class="Celse">else</span> 
+          join <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">.</span>tag<span class="Cnonalphakeyword">,</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">,</span>x<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">,</span> j<span class="Cnonalphakeyword">.</span>tag<span class="Cnonalphakeyword">,</span> t<span class="Cnonalphakeyword">)</span>
+    <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span>m<span class="Cnonalphakeyword">,</span>t0<span class="Cnonalphakeyword">,</span>t1<span class="Cnonalphakeyword">)</span> <span class="Cas">as</span> t <span class="Cnonalphakeyword">-&gt;</span>
+        <span class="Cif">if</span> match_prefix k<span class="Cnonalphakeyword">.</span>tag p m <span class="Cthen">then</span>
+          <span class="Cif">if</span> zero_bit k<span class="Cnonalphakeyword">.</span>tag m <span class="Cthen">then</span> 
+            <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span> m<span class="Cnonalphakeyword">,</span> ins t0<span class="Cnonalphakeyword">,</span> t1<span class="Cnonalphakeyword">)</span>
+          <span class="Celse">else</span>
+            <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span> m<span class="Cnonalphakeyword">,</span> t0<span class="Cnonalphakeyword">,</span> ins t1<span class="Cnonalphakeyword">)</span>
+        <span class="Celse">else</span>
+          join <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">.</span>tag<span class="Cnonalphakeyword">,</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">,</span>x<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">,</span> p<span class="Cnonalphakeyword">,</span> t<span class="Cnonalphakeyword">)</span>
+  <span class="Cin">in</span>
+  ins t
+
+<span class="Clet">let</span> branch <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+  <span class="Cbar">|</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">,</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">,</span><span class="Cconstructor">Empty</span><span class="Cnonalphakeyword">,</span>t<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> t
+  <span class="Cbar">|</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">,</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">,</span>t<span class="Cnonalphakeyword">,</span><span class="Cconstructor">Empty</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> t
+  <span class="Cbar">|</span> <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span>m<span class="Cnonalphakeyword">,</span>t0<span class="Cnonalphakeyword">,</span>t1<span class="Cnonalphakeyword">)</span>   <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span>m<span class="Cnonalphakeyword">,</span>t0<span class="Cnonalphakeyword">,</span>t1<span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> remove k t <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> rmv <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+    <span class="Cbar">|</span> <span class="Cconstructor">Empty</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">Empty</span>
+    <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>j<span class="Cnonalphakeyword">,</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">)</span> <span class="Cas">as</span> t <span class="Cnonalphakeyword">-&gt;</span> <span class="Cif">if</span> k<span class="Cnonalphakeyword">.</span>tag == j<span class="Cnonalphakeyword">.</span>tag <span class="Cthen">then</span> <span class="Cconstructor">Empty</span> <span class="Celse">else</span> t
+    <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span>m<span class="Cnonalphakeyword">,</span>t0<span class="Cnonalphakeyword">,</span>t1<span class="Cnonalphakeyword">)</span> <span class="Cas">as</span> t <span class="Cnonalphakeyword">-&gt;</span> 
+        <span class="Cif">if</span> match_prefix k<span class="Cnonalphakeyword">.</span>tag p m <span class="Cthen">then</span>
+          <span class="Cif">if</span> zero_bit k<span class="Cnonalphakeyword">.</span>tag m <span class="Cthen">then</span>
+            branch <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span> m<span class="Cnonalphakeyword">,</span> rmv t0<span class="Cnonalphakeyword">,</span> t1<span class="Cnonalphakeyword">)</span>
+          <span class="Celse">else</span>
+            branch <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span> m<span class="Cnonalphakeyword">,</span> t0<span class="Cnonalphakeyword">,</span> rmv t1<span class="Cnonalphakeyword">)</span>
+        <span class="Celse">else</span>
+          t
+  <span class="Cin">in</span>
+  rmv t
+
+<span class="Clet">let</span> <span class="Crec">rec</span> iter f <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Empty</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">,</span>x<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> f k x
+  <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">,</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">,</span>t0<span class="Cnonalphakeyword">,</span>t1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> iter f t0<span class="Cnonalphakeyword">;</span> iter f t1
+
+<span class="Clet">let</span> <span class="Crec">rec</span> map f <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Empty</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">Empty</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">,</span>x<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">,</span> f x<span class="Cnonalphakeyword">)</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span>m<span class="Cnonalphakeyword">,</span>t0<span class="Cnonalphakeyword">,</span>t1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span> m<span class="Cnonalphakeyword">,</span> map f t0<span class="Cnonalphakeyword">,</span> map f t1<span class="Cnonalphakeyword">)</span>
+      
+<span class="Clet">let</span> <span class="Crec">rec</span> mapi f <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Empty</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">Empty</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">,</span>x<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">,</span> f k x<span class="Cnonalphakeyword">)</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span>m<span class="Cnonalphakeyword">,</span>t0<span class="Cnonalphakeyword">,</span>t1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">,</span> m<span class="Cnonalphakeyword">,</span> mapi f t0<span class="Cnonalphakeyword">,</span> mapi f t1<span class="Cnonalphakeyword">)</span>
+      
+<span class="Clet">let</span> <span class="Crec">rec</span> fold f s accu <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> s <span class="Cwith">with</span>
+  <span class="Cbar">|</span> <span class="Cconstructor">Empty</span> <span class="Cnonalphakeyword">-&gt;</span> accu
+  <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">,</span>x<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> f k x accu
+  <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">,</span><span class="Cnonalphakeyword">_</span><span class="Cnonalphakeyword">,</span>t0<span class="Cnonalphakeyword">,</span>t1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> fold f t0 <span class="Cnonalphakeyword">(</span>fold f t1 accu<span class="Cnonalphakeyword">)</span>
+
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

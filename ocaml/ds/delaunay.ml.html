@@ -1,0 +1,464 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+delaunay.ml</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="delaunay.ml"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Ocamlgraph: a generic graph library for OCaml                         *)</span>
+<span class="Ccomment">(*  Copyright (C) 2004-2010                                               *)</span>
+<span class="Ccomment">(*  Sylvain Conchon, Jean-Christophe Filliatre and Julien Signoles        *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(* $Id: delaunay.ml,v 1.12 2005-11-02 13:43:35 filliatr Exp $ *)</span>
+
+<span class="Ccomment">(** Code follows Don Knuth's algorithm</span>
+<span class="Ccomment">    from ``Axioms and hulls'' (LNCS 606, Springer-Verlag, 1992), pp. 73-77.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    Some code and comments are taken from the Stanford Graph Base,</span>
+<span class="Ccomment">    file [gb_plane].</span>
+<span class="Ccomment">*)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">CCC</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+  <span class="Ctype">type</span> point
+  <span class="Cval">val</span> ccw : point <span class="Cnonalphakeyword">-&gt;</span> point <span class="Cnonalphakeyword">-&gt;</span> point <span class="Cnonalphakeyword">-&gt;</span> bool
+  <span class="Cval">val</span> in_circle : point <span class="Cnonalphakeyword">-&gt;</span> point <span class="Cnonalphakeyword">-&gt;</span> point <span class="Cnonalphakeyword">-&gt;</span> point <span class="Cnonalphakeyword">-&gt;</span> bool
+<span class="Cend">end</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">Triangulation</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+  <span class="Cmodule">module</span> <span class="Cconstructor">S</span> : <span class="Cconstructor">CCC</span>
+  <span class="Ctype">type</span> triangulation
+  <span class="Cval">val</span> triangulate : <span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>point array <span class="Cnonalphakeyword">-&gt;</span> triangulation
+  <span class="Cval">val</span> iter : <span class="Cnonalphakeyword">(</span><span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>point <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>point <span class="Cnonalphakeyword">-&gt;</span> unit<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> triangulation <span class="Cnonalphakeyword">-&gt;</span> unit
+  <span class="Cval">val</span> fold : <span class="Cnonalphakeyword">(</span><span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>point <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>point <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> 'a<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> triangulation <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> 'a
+  <span class="Cval">val</span> iter_triangles :
+    <span class="Cnonalphakeyword">(</span><span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>point <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>point <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>point <span class="Cnonalphakeyword">-&gt;</span> unit<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> triangulation <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Cend">end</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Make</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">S</span> : <span class="Cconstructor">CCC</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cstruct">struct</span>
+
+  <span class="Cmodule">module</span> <span class="Cconstructor">S</span> <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">S</span>
+
+  <span class="Ctype">type</span> point <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Point</span> <span class="Cof">of</span> int <span class="Cbar">|</span> <span class="Cconstructor">Infinity</span>
+
+  <span class="Ccomment">(* Each edge of the current triangulation is represented by two arcs</span>
+<span class="Ccomment">     pointing in opposite directions; the two arcs are called mates. Each</span>
+<span class="Ccomment">     arc conceptually has a triangle on its left and a mate on its right. *)</span>
+
+  <span class="Ctype">type</span> arc <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span>
+    <span class="Cmutable">mutable</span> vert : point<span class="Cnonalphakeyword">;</span>
+    <span class="Ccomment">(* v, if this arc goes from u to v *)</span>
+    <span class="Cmutable">mutable</span> next : arc<span class="Cnonalphakeyword">;</span>
+    <span class="Ccomment">(* the arc from v that shares a triangle with this one *)</span>
+    <span class="Cmutable">mutable</span> inst : node ref<span class="Cnonalphakeyword">;</span>
+    <span class="Ccomment">(* instruction to change when the triangle is modified *)</span>
+    mate : int
+  <span class="Cnonalphakeyword">}</span>
+  <span class="Cand">and</span> node <span class="Cnonalphakeyword">=</span>
+    <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cof">of</span> int <span class="Cnonalphakeyword">*</span> int <span class="Cnonalphakeyword">*</span> node ref <span class="Cnonalphakeyword">*</span> node ref
+    <span class="Cbar">|</span> <span class="Cconstructor">Terminal</span> <span class="Cof">of</span> arc
+
+  <span class="Ctype">type</span> triangulation <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span>
+    points : <span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>point array<span class="Cnonalphakeyword">;</span>
+    arcs : arc array<span class="Cnonalphakeyword">;</span>
+    last_used_arc : int
+  <span class="Cnonalphakeyword">}</span>
+
+  <span class="Clet">let</span> <span class="Crec">rec</span> dummy_arc <span class="Cnonalphakeyword">=</span>
+    <span class="Cnonalphakeyword">{</span> vert <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Infinity</span><span class="Cnonalphakeyword">;</span> next <span class="Cnonalphakeyword">=</span> dummy_arc<span class="Cnonalphakeyword">;</span>
+      inst <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Terminal</span> dummy_arc<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span> mate <span class="Cnonalphakeyword">=</span> -1 <span class="Cnonalphakeyword">}</span>
+
+  <span class="Clet">let</span> make_arc n i <span class="Cnonalphakeyword">=</span>
+    <span class="Cnonalphakeyword">{</span> vert <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Infinity</span><span class="Cnonalphakeyword">;</span> next <span class="Cnonalphakeyword">=</span> dummy_arc<span class="Cnonalphakeyword">;</span>
+      inst <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Terminal</span> dummy_arc<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span> mate <span class="Cnonalphakeyword">=</span> 6 <span class="Cnonalphakeyword">*</span> n <span class="Cnonalphakeyword">-</span> 7 <span class="Cnonalphakeyword">-</span> i <span class="Cnonalphakeyword">}</span>
+
+  <span class="Clet">let</span> finite <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span> <span class="Cconstructor">Point</span> p <span class="Cnonalphakeyword">-&gt;</span> p <span class="Cbar">|</span> <span class="Cconstructor">Infinity</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+
+  <span class="Ccomment">(* [flip] will be used in both steps T4 and T5 *)</span>
+  <span class="Clet">let</span> flip c d e t'' p n n' <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> e' <span class="Cnonalphakeyword">=</span> e<span class="Cnonalphakeyword">.</span>next <span class="Cin">in</span>
+    <span class="Clet">let</span> c' <span class="Cnonalphakeyword">=</span> c<span class="Cnonalphakeyword">.</span>next <span class="Cin">in</span>
+    <span class="Clet">let</span> c'' <span class="Cnonalphakeyword">=</span> c'<span class="Cnonalphakeyword">.</span>next <span class="Cin">in</span>
+    e<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> c<span class="Cnonalphakeyword">;</span>
+    c<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> c''<span class="Cnonalphakeyword">;</span>
+    c''<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> e<span class="Cnonalphakeyword">;</span>
+    c''<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> n<span class="Cnonalphakeyword">;</span> c<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> n<span class="Cnonalphakeyword">;</span> e<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> n<span class="Cnonalphakeyword">;</span>
+    c<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Point</span> p<span class="Cnonalphakeyword">;</span>
+    d<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> e'<span class="Cnonalphakeyword">;</span>
+    e'<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> c'<span class="Cnonalphakeyword">;</span>
+    c'<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> d<span class="Cnonalphakeyword">;</span>
+    c'<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> n'<span class="Cnonalphakeyword">;</span> e'<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> n'<span class="Cnonalphakeyword">;</span> d<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> n'<span class="Cnonalphakeyword">;</span>
+    d<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Point</span> t''
+
+  <span class="Clet">let</span> triangulate points <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> ccw p q r <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>ccw points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">)</span> points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>q<span class="Cnonalphakeyword">)</span> points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>r<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> in_circle p q r s <span class="Cnonalphakeyword">=</span>
+      <span class="Cconstructor">S</span><span class="Cnonalphakeyword">.</span>in_circle points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>p<span class="Cnonalphakeyword">)</span> points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>q<span class="Cnonalphakeyword">)</span> points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>r<span class="Cnonalphakeyword">)</span> points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>s<span class="Cnonalphakeyword">)</span>
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length points <span class="Cin">in</span>
+    <span class="Cif">if</span> n <span class="Cnonalphakeyword">&lt;</span> 2 <span class="Cthen">then</span> invalid_arg <span class="Cstring">"triangulate"</span><span class="Cnonalphakeyword">;</span>
+    <span class="Clet">let</span> arcs <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>init <span class="Cnonalphakeyword">(</span>6 <span class="Cnonalphakeyword">*</span> n <span class="Cnonalphakeyword">-</span> 6<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>make_arc n<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> mate i <span class="Cnonalphakeyword">=</span> 6 <span class="Cnonalphakeyword">*</span> n <span class="Cnonalphakeyword">-</span> 7 <span class="Cnonalphakeyword">-</span> i <span class="Cin">in</span>
+
+    <span class="Ccomment">(*i DEBUG</span>
+<span class="Ccomment">      let rec dump d l =</span>
+<span class="Ccomment">      eprintf "%s" (String.make (2*d) ' ');</span>
+<span class="Ccomment">      match !l with</span>
+<span class="Ccomment">        | Terminal a -&gt;</span>
+<span class="Ccomment">      eprintf "T %d\n" (mate a.mate)</span>
+<span class="Ccomment">        | Branch (u, v, l, r) -&gt;</span>
+<span class="Ccomment">      eprintf "N %d %d\n" u v;</span>
+<span class="Ccomment">      dump (d+1) l;</span>
+<span class="Ccomment">      dump (d+1) r</span>
+<span class="Ccomment">      in</span>
+<span class="Ccomment">      i*)</span>
+
+    <span class="Ccomment">(* initialization:</span>
+<span class="Ccomment">       create a trivial triangulation for the first 2 vertices *)</span>
+    <span class="Clet">let</span> u <span class="Cnonalphakeyword">=</span> 0 <span class="Cin">in</span>
+    <span class="Clet">let</span> v <span class="Cnonalphakeyword">=</span> 1 <span class="Cin">in</span>
+    <span class="Clet">let</span> a1 <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>0<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> a2 <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>1<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> a3 <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>2<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> b1 <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>mate 0<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> b2 <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>mate 1<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> b3 <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>mate 2<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> l1 <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Terminal</span> a2<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> l2 <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Terminal</span> b3<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    a1<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Point</span> v<span class="Cnonalphakeyword">;</span>  a1<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> a2<span class="Cnonalphakeyword">;</span> a1<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l1<span class="Cnonalphakeyword">;</span>
+    a2<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Infinity</span><span class="Cnonalphakeyword">;</span> a2<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> a3<span class="Cnonalphakeyword">;</span> a2<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l1<span class="Cnonalphakeyword">;</span>
+    a3<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Point</span> u<span class="Cnonalphakeyword">;</span>  a3<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> a1<span class="Cnonalphakeyword">;</span> a3<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l1<span class="Cnonalphakeyword">;</span>
+    b1<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Point</span> u<span class="Cnonalphakeyword">;</span>  b1<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> b3<span class="Cnonalphakeyword">;</span> b1<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l2<span class="Cnonalphakeyword">;</span>
+    b2<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Point</span> v<span class="Cnonalphakeyword">;</span>  b2<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> b1<span class="Cnonalphakeyword">;</span> b2<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l2<span class="Cnonalphakeyword">;</span>
+    b3<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Infinity</span><span class="Cnonalphakeyword">;</span> b3<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> b2<span class="Cnonalphakeyword">;</span> b3<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l2<span class="Cnonalphakeyword">;</span>
+    <span class="Clet">let</span> l0 <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>u<span class="Cnonalphakeyword">,</span> v<span class="Cnonalphakeyword">,</span> l1<span class="Cnonalphakeyword">,</span> l2<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> j <span class="Cnonalphakeyword">=</span> ref 2 <span class="Cin">in</span> <span class="Ccomment">(* last used arc *)</span>
+
+    <span class="Ccomment">(* then for each new vertex [p] *)</span>
+    <span class="Cfor">for</span> p <span class="Cnonalphakeyword">=</span> 2 <span class="Cto">to</span> n <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+      <span class="Ccomment">(* Step T1 *)</span>
+      <span class="Clet">let</span> <span class="Crec">rec</span> step_T1 l p <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> !l <span class="Cwith">with</span>
+        <span class="Cbar">|</span> <span class="Cconstructor">Terminal</span> al <span class="Cnonalphakeyword">-&gt;</span>
+          l<span class="Cnonalphakeyword">,</span> al
+        <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>pl<span class="Cnonalphakeyword">,</span> ql<span class="Cnonalphakeyword">,</span> al<span class="Cnonalphakeyword">,</span> bl<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span>
+          step_T1 <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> ccw pl ql p <span class="Cthen">then</span> al <span class="Celse">else</span> bl<span class="Cnonalphakeyword">)</span> p
+      <span class="Cin">in</span>
+      <span class="Clet">let</span> l<span class="Cnonalphakeyword">,</span> al <span class="Cnonalphakeyword">=</span> step_T1 l0 p <span class="Cin">in</span>
+
+      <span class="Ccomment">(* Step T2 *)</span>
+      <span class="Clet">let</span> a <span class="Cnonalphakeyword">=</span> al <span class="Cin">in</span>
+      <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> a<span class="Cnonalphakeyword">.</span>next <span class="Cin">in</span>
+      <span class="Clet">let</span> c <span class="Cnonalphakeyword">=</span> b<span class="Cnonalphakeyword">.</span>next <span class="Cin">in</span>
+      <span class="Clet">let</span> q <span class="Cnonalphakeyword">=</span> a<span class="Cnonalphakeyword">.</span>vert <span class="Cin">in</span>
+      <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> b<span class="Cnonalphakeyword">.</span>vert <span class="Cin">in</span>
+      <span class="Clet">let</span> s <span class="Cnonalphakeyword">=</span> c<span class="Cnonalphakeyword">.</span>vert <span class="Cin">in</span>
+      j <span class="Cnonalphakeyword">:=</span> !j <span class="Cnonalphakeyword">+</span> 3<span class="Cnonalphakeyword">;</span>
+      <span class="Clet">let</span> aj <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>!j<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Clet">let</span> aj_1 <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>!j <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Clet">let</span> aj_2 <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>!j <span class="Cnonalphakeyword">-</span> 2<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Clet">let</span> bj <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>aj<span class="Cnonalphakeyword">.</span>mate<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Clet">let</span> bj_1 <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>aj_1<span class="Cnonalphakeyword">.</span>mate<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Clet">let</span> bj_2 <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>aj_2<span class="Cnonalphakeyword">.</span>mate<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Clet">let</span> l' <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Terminal</span> a<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Clet">let</span> l'' <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Terminal</span> aj<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Clet">let</span> l''' <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Terminal</span> c<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      aj<span class="Cnonalphakeyword">.</span>vert   <span class="Cnonalphakeyword">&lt;-</span> q<span class="Cnonalphakeyword">;</span>         aj<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> b<span class="Cnonalphakeyword">;</span>      aj<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l''<span class="Cnonalphakeyword">;</span>
+      aj_1<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> r<span class="Cnonalphakeyword">;</span>       aj_1<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> c<span class="Cnonalphakeyword">;</span>    aj_1<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l'''<span class="Cnonalphakeyword">;</span>
+      aj_2<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> s<span class="Cnonalphakeyword">;</span>       aj_2<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> a<span class="Cnonalphakeyword">;</span>    aj_2<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l'<span class="Cnonalphakeyword">;</span>
+      bj<span class="Cnonalphakeyword">.</span>vert   <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Point</span> p<span class="Cnonalphakeyword">;</span>   bj<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> aj_2<span class="Cnonalphakeyword">;</span>   bj<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l'<span class="Cnonalphakeyword">;</span>
+      bj_1<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Point</span> p<span class="Cnonalphakeyword">;</span> bj_1<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> aj<span class="Cnonalphakeyword">;</span>   bj_1<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l''<span class="Cnonalphakeyword">;</span>
+      bj_2<span class="Cnonalphakeyword">.</span>vert <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Point</span> p<span class="Cnonalphakeyword">;</span> bj_2<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> aj_1<span class="Cnonalphakeyword">;</span> bj_2<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l'''<span class="Cnonalphakeyword">;</span>
+      a<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> bj<span class="Cnonalphakeyword">;</span>   a<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l'<span class="Cnonalphakeyword">;</span>
+      b<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> bj_1<span class="Cnonalphakeyword">;</span> b<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l''<span class="Cnonalphakeyword">;</span>
+      c<span class="Cnonalphakeyword">.</span>next <span class="Cnonalphakeyword">&lt;-</span> bj_2<span class="Cnonalphakeyword">;</span> c<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> l'''<span class="Cnonalphakeyword">;</span>
+      <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> finite r <span class="Cin">in</span>
+      <span class="Clet">let</span> s <span class="Cnonalphakeyword">=</span> finite s <span class="Cin">in</span>
+
+      <span class="Ccomment">(* steps T3 or T4 depending on [q] *)</span>
+      <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> q <span class="Cwith">with</span>
+        <span class="Cbar">|</span> <span class="Cconstructor">Point</span> q <span class="Cnonalphakeyword">-&gt;</span> <span class="Ccomment">(* Step T3 *)</span>
+          <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>q<span class="Cnonalphakeyword">,</span> p<span class="Cnonalphakeyword">,</span> l'<span class="Cnonalphakeyword">,</span> l''<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+          <span class="Clet">let</span> n' <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>s<span class="Cnonalphakeyword">,</span> p<span class="Cnonalphakeyword">,</span> l'''<span class="Cnonalphakeyword">,</span> l'<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+          l <span class="Cnonalphakeyword">:=</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>r<span class="Cnonalphakeyword">,</span> p<span class="Cnonalphakeyword">,</span> n<span class="Cnonalphakeyword">,</span> n'<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+          r
+        <span class="Cbar">|</span> <span class="Cconstructor">Infinity</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Ccomment">(* Step T4 *)</span>
+          <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>s<span class="Cnonalphakeyword">,</span> p<span class="Cnonalphakeyword">,</span> l'''<span class="Cnonalphakeyword">,</span> l'<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+          l <span class="Cnonalphakeyword">:=</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>r<span class="Cnonalphakeyword">,</span> p<span class="Cnonalphakeyword">,</span> l''<span class="Cnonalphakeyword">,</span> n<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+          <span class="Clet">let</span> <span class="Crec">rec</span> loop m a d s t <span class="Cnonalphakeyword">=</span>
+            <span class="Cif">if</span> t &lt;&gt; r <span class="Cnonalphakeyword">&amp;&amp;</span> ccw p s t <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+              <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Terminal</span> d<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+              <span class="Cmatch">match</span> !m <span class="Cwith">with</span>
+              <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>mu<span class="Cnonalphakeyword">,</span> mv<span class="Cnonalphakeyword">,</span> ml<span class="Cnonalphakeyword">,</span> is_l'<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span>
+                <span class="Cassert">assert</span> <span class="Cnonalphakeyword">(</span>is_l' == l'<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+                m <span class="Cnonalphakeyword">:=</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>mu<span class="Cnonalphakeyword">,</span> mv<span class="Cnonalphakeyword">,</span> ml<span class="Cnonalphakeyword">,</span> d<span class="Cnonalphakeyword">.</span>inst<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+                d<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">:=</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>t<span class="Cnonalphakeyword">,</span> p<span class="Cnonalphakeyword">,</span> n<span class="Cnonalphakeyword">,</span> l'<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+                <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> d<span class="Cnonalphakeyword">.</span>inst <span class="Cin">in</span>
+                flip a arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>a<span class="Cnonalphakeyword">.</span>mate<span class="Cnonalphakeyword">)</span> d t p n l'<span class="Cnonalphakeyword">;</span>
+                <span class="Clet">let</span> a <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>a<span class="Cnonalphakeyword">.</span>mate<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">.</span>next <span class="Cin">in</span>
+                <span class="Clet">let</span> d <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>a<span class="Cnonalphakeyword">.</span>mate<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">.</span>next <span class="Cin">in</span>
+                <span class="Clet">let</span> s <span class="Cnonalphakeyword">=</span> t <span class="Cin">in</span>
+                <span class="Clet">let</span> t <span class="Cnonalphakeyword">=</span> finite d<span class="Cnonalphakeyword">.</span>vert <span class="Cin">in</span>
+                l' <span class="Cnonalphakeyword">:=</span> <span class="Cconstructor">Terminal</span> a<span class="Cnonalphakeyword">;</span>
+                loop m a d s t
+              <span class="Cbar">|</span> <span class="Cconstructor">Terminal</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span>
+                <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+            <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+              <span class="Ccomment">(* at exit of while loop *)</span>
+              <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Terminal</span> d<span class="Cnonalphakeyword">.</span>next<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+              d<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">:=</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>s<span class="Cnonalphakeyword">,</span> p<span class="Cnonalphakeyword">,</span> n<span class="Cnonalphakeyword">,</span> l'<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+              d<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> n<span class="Cnonalphakeyword">;</span> d<span class="Cnonalphakeyword">.</span>next<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> n<span class="Cnonalphakeyword">;</span> d<span class="Cnonalphakeyword">.</span>next<span class="Cnonalphakeyword">.</span>next<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">&lt;-</span> n<span class="Cnonalphakeyword">;</span>
+              s
+            <span class="Cend">end</span>
+          <span class="Cin">in</span>
+          <span class="Clet">let</span> d <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>a<span class="Cnonalphakeyword">.</span>mate<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">.</span>next <span class="Cin">in</span>
+          loop n a d s <span class="Cnonalphakeyword">(</span>finite d<span class="Cnonalphakeyword">.</span>vert<span class="Cnonalphakeyword">)</span>
+      <span class="Cin">in</span>
+
+      <span class="Ccomment">(* Step T5 *)</span>
+      <span class="Clet">let</span> <span class="Crec">rec</span> loop c <span class="Cnonalphakeyword">=</span>
+        <span class="Clet">let</span> d <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>c<span class="Cnonalphakeyword">.</span>mate<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+        <span class="Clet">let</span> e <span class="Cnonalphakeyword">=</span> d<span class="Cnonalphakeyword">.</span>next <span class="Cin">in</span>
+        <span class="Clet">let</span> t <span class="Cnonalphakeyword">=</span> finite d<span class="Cnonalphakeyword">.</span>vert <span class="Cin">in</span>
+        <span class="Clet">let</span> t' <span class="Cnonalphakeyword">=</span> finite c<span class="Cnonalphakeyword">.</span>vert <span class="Cin">in</span>
+        <span class="Clet">let</span> t'' <span class="Cnonalphakeyword">=</span> e<span class="Cnonalphakeyword">.</span>vert <span class="Cin">in</span>
+        <span class="Cif">if</span> t'' &lt;&gt; <span class="Cconstructor">Infinity</span> <span class="Cnonalphakeyword">&amp;&amp;</span> in_circle <span class="Cnonalphakeyword">(</span>finite t''<span class="Cnonalphakeyword">)</span> t' t p <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          <span class="Clet">let</span> t'' <span class="Cnonalphakeyword">=</span> finite t'' <span class="Cin">in</span>
+          <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Terminal</span> e<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+          <span class="Clet">let</span> n' <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Terminal</span> d<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+          c<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">:=</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>t''<span class="Cnonalphakeyword">,</span> p<span class="Cnonalphakeyword">,</span> n<span class="Cnonalphakeyword">,</span> n'<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+          d<span class="Cnonalphakeyword">.</span>inst <span class="Cnonalphakeyword">:=</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">(</span>t''<span class="Cnonalphakeyword">,</span> p<span class="Cnonalphakeyword">,</span> n<span class="Cnonalphakeyword">,</span> n'<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+          flip c d e t'' p n n'<span class="Cnonalphakeyword">;</span>
+          loop e
+        <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cif">if</span> t' &lt;&gt; r <span class="Cthen">then</span>
+          loop arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>c<span class="Cnonalphakeyword">.</span>next<span class="Cnonalphakeyword">.</span>mate<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">.</span>next
+        <span class="Celse">else</span>
+          <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Ccomment">(* break *)</span>
+      <span class="Cin">in</span>
+      loop c
+
+    <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+    <span class="Cnonalphakeyword">{</span> points <span class="Cnonalphakeyword">=</span> points<span class="Cnonalphakeyword">;</span> arcs <span class="Cnonalphakeyword">=</span> arcs<span class="Cnonalphakeyword">;</span> last_used_arc <span class="Cnonalphakeyword">=</span> !j <span class="Cnonalphakeyword">}</span>
+
+  <span class="Clet">let</span> iter f t <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> points <span class="Cnonalphakeyword">=</span> t<span class="Cnonalphakeyword">.</span>points <span class="Cin">in</span>
+    <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length t<span class="Cnonalphakeyword">.</span>arcs <span class="Cin">in</span>
+    <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> t<span class="Cnonalphakeyword">.</span>last_used_arc <span class="Cdo">do</span>
+      <span class="Cmatch">match</span> t<span class="Cnonalphakeyword">.</span>arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">.</span>vert<span class="Cnonalphakeyword">,</span> t<span class="Cnonalphakeyword">.</span>arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>n <span class="Cnonalphakeyword">-</span> 1 <span class="Cnonalphakeyword">-</span> i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">.</span>vert <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Point</span> u<span class="Cnonalphakeyword">,</span> <span class="Cconstructor">Point</span> v <span class="Cnonalphakeyword">-&gt;</span> f points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>u<span class="Cnonalphakeyword">)</span> points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>v<span class="Cnonalphakeyword">)</span>
+      <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span>
+    <span class="Cdone">done</span>
+
+  <span class="Clet">let</span> iter_triangles f t <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length t<span class="Cnonalphakeyword">.</span>arcs <span class="Cin">in</span>
+    <span class="Clet">let</span> seen_arc <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>make n <span class="Cfalse">false</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> mate i <span class="Cnonalphakeyword">=</span> n <span class="Cnonalphakeyword">-</span> 1 <span class="Cnonalphakeyword">-</span> i <span class="Cin">in</span>
+    <span class="Clet">let</span> index a <span class="Cnonalphakeyword">=</span> mate a<span class="Cnonalphakeyword">.</span>mate <span class="Cin">in</span>
+    <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> n-1 <span class="Cdo">do</span>
+      <span class="Cif">if</span> not seen_arc<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span> <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        <span class="Clet">let</span> a1 <span class="Cnonalphakeyword">=</span> t<span class="Cnonalphakeyword">.</span>arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+        <span class="Clet">let</span> a2 <span class="Cnonalphakeyword">=</span> a1<span class="Cnonalphakeyword">.</span>next <span class="Cin">in</span>
+        <span class="Clet">let</span> a3 <span class="Cnonalphakeyword">=</span> a2<span class="Cnonalphakeyword">.</span>next <span class="Cin">in</span>
+        seen_arc<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <span class="Ctrue">true</span><span class="Cnonalphakeyword">;</span>
+        seen_arc<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>index a2<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <span class="Ctrue">true</span><span class="Cnonalphakeyword">;</span>
+        seen_arc<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>index a3<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <span class="Ctrue">true</span><span class="Cnonalphakeyword">;</span>
+        <span class="Cmatch">match</span> a1<span class="Cnonalphakeyword">.</span>vert<span class="Cnonalphakeyword">,</span> a2<span class="Cnonalphakeyword">.</span>vert<span class="Cnonalphakeyword">,</span> a3<span class="Cnonalphakeyword">.</span>vert <span class="Cwith">with</span>
+        <span class="Cbar">|</span> <span class="Cconstructor">Point</span> i1<span class="Cnonalphakeyword">,</span> <span class="Cconstructor">Point</span> i2<span class="Cnonalphakeyword">,</span> <span class="Cconstructor">Point</span> i3 <span class="Cnonalphakeyword">-&gt;</span>
+          f t<span class="Cnonalphakeyword">.</span>points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i1<span class="Cnonalphakeyword">)</span> t<span class="Cnonalphakeyword">.</span>points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i2<span class="Cnonalphakeyword">)</span> t<span class="Cnonalphakeyword">.</span>points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i3<span class="Cnonalphakeyword">)</span>
+        <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span>
+          <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span>
+      <span class="Cend">end</span>
+    <span class="Cdone">done</span>
+
+  <span class="Clet">let</span> fold f t a <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> points <span class="Cnonalphakeyword">=</span> t<span class="Cnonalphakeyword">.</span>points <span class="Cin">in</span>
+    <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length t<span class="Cnonalphakeyword">.</span>arcs <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> loop i a <span class="Cnonalphakeyword">=</span>
+      <span class="Cif">if</span> i &lt;= t<span class="Cnonalphakeyword">.</span>last_used_arc <span class="Cthen">then</span>
+        <span class="Cmatch">match</span> t<span class="Cnonalphakeyword">.</span>arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">.</span>vert<span class="Cnonalphakeyword">,</span> t<span class="Cnonalphakeyword">.</span>arcs<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>n <span class="Cnonalphakeyword">-</span> 1 <span class="Cnonalphakeyword">-</span> i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">.</span>vert <span class="Cwith">with</span>
+        <span class="Cbar">|</span> <span class="Cconstructor">Point</span> u<span class="Cnonalphakeyword">,</span> <span class="Cconstructor">Point</span> v <span class="Cnonalphakeyword">-&gt;</span> loop <span class="Cnonalphakeyword">(</span>succ i<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>f points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>u<span class="Cnonalphakeyword">)</span> points<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>v<span class="Cnonalphakeyword">)</span> a<span class="Cnonalphakeyword">)</span>
+        <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> loop <span class="Cnonalphakeyword">(</span>succ i<span class="Cnonalphakeyword">)</span> a
+      <span class="Celse">else</span>
+        a
+    <span class="Cin">in</span>
+    loop 0 a
+
+<span class="Cend">end</span>
+
+<span class="Ccomment">(** Points with floating point coordinates *)</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">FloatPoints</span> <span class="Cnonalphakeyword">=</span> <span class="Cstruct">struct</span>
+
+  <span class="Ctype">type</span> point <span class="Cnonalphakeyword">=</span> float <span class="Cnonalphakeyword">*</span> float
+
+  <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span> <span class="Cnonalphakeyword">+</span> <span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span> +. <span class="Cnonalphakeyword">)</span>
+  <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span> <span class="Cnonalphakeyword">-</span> <span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span> <span class="Cnonalphakeyword">-.</span> <span class="Cnonalphakeyword">)</span>
+  <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span> <span class="Cnonalphakeyword">*</span> <span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span> *. <span class="Cnonalphakeyword">)</span>
+
+  <span class="Clet">let</span> det <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+    <span class="Cbar">|</span> <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">[|</span> a00<span class="Cnonalphakeyword">;</span> a01 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span>
+         <span class="Cnonalphakeyword">[|</span> a10<span class="Cnonalphakeyword">;</span> a11 <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">-&gt;</span>
+      a00 <span class="Cnonalphakeyword">*</span> a11 <span class="Cnonalphakeyword">-</span> a01 <span class="Cnonalphakeyword">*</span> a10
+    <span class="Cbar">|</span> <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">[|</span> a00<span class="Cnonalphakeyword">;</span> a01<span class="Cnonalphakeyword">;</span> a02 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span>
+         <span class="Cnonalphakeyword">[|</span> a10<span class="Cnonalphakeyword">;</span> a11<span class="Cnonalphakeyword">;</span> a12 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span>
+         <span class="Cnonalphakeyword">[|</span> a20<span class="Cnonalphakeyword">;</span> a21<span class="Cnonalphakeyword">;</span> a22 <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">-&gt;</span>
+      a00<span class="Cnonalphakeyword">*</span>a11<span class="Cnonalphakeyword">*</span>a22 <span class="Cnonalphakeyword">-</span> a00<span class="Cnonalphakeyword">*</span>a12<span class="Cnonalphakeyword">*</span>a21 <span class="Cnonalphakeyword">-</span> a10<span class="Cnonalphakeyword">*</span>a01<span class="Cnonalphakeyword">*</span>a22 <span class="Cnonalphakeyword">+</span>
+      a10<span class="Cnonalphakeyword">*</span>a02<span class="Cnonalphakeyword">*</span>a21 <span class="Cnonalphakeyword">+</span> a20<span class="Cnonalphakeyword">*</span>a01<span class="Cnonalphakeyword">*</span>a12 <span class="Cnonalphakeyword">-</span> a20<span class="Cnonalphakeyword">*</span>a02<span class="Cnonalphakeyword">*</span>a11
+    <span class="Cbar">|</span> <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">[|</span> a00<span class="Cnonalphakeyword">;</span> a01<span class="Cnonalphakeyword">;</span> a02<span class="Cnonalphakeyword">;</span> a03 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span>
+         <span class="Cnonalphakeyword">[|</span> a10<span class="Cnonalphakeyword">;</span> a11<span class="Cnonalphakeyword">;</span> a12<span class="Cnonalphakeyword">;</span> a13 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span>
+         <span class="Cnonalphakeyword">[|</span> a20<span class="Cnonalphakeyword">;</span> a21<span class="Cnonalphakeyword">;</span> a22<span class="Cnonalphakeyword">;</span> a23 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span>
+         <span class="Cnonalphakeyword">[|</span> a30<span class="Cnonalphakeyword">;</span> a31<span class="Cnonalphakeyword">;</span> a32<span class="Cnonalphakeyword">;</span> a33 <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">-&gt;</span>
+      a00<span class="Cnonalphakeyword">*</span>a11<span class="Cnonalphakeyword">*</span>a22<span class="Cnonalphakeyword">*</span>a33 <span class="Cnonalphakeyword">-</span> a00<span class="Cnonalphakeyword">*</span>a11<span class="Cnonalphakeyword">*</span>a23<span class="Cnonalphakeyword">*</span>a32 <span class="Cnonalphakeyword">-</span> a00<span class="Cnonalphakeyword">*</span>a21<span class="Cnonalphakeyword">*</span>a12<span class="Cnonalphakeyword">*</span>a33 <span class="Cnonalphakeyword">+</span>
+      a00<span class="Cnonalphakeyword">*</span>a21<span class="Cnonalphakeyword">*</span>a13<span class="Cnonalphakeyword">*</span>a32 <span class="Cnonalphakeyword">+</span> a00<span class="Cnonalphakeyword">*</span>a31<span class="Cnonalphakeyword">*</span>a12<span class="Cnonalphakeyword">*</span>a23 <span class="Cnonalphakeyword">-</span> a00<span class="Cnonalphakeyword">*</span>a31<span class="Cnonalphakeyword">*</span>a13<span class="Cnonalphakeyword">*</span>a22 <span class="Cnonalphakeyword">-</span>
+      a10<span class="Cnonalphakeyword">*</span>a01<span class="Cnonalphakeyword">*</span>a22<span class="Cnonalphakeyword">*</span>a33 <span class="Cnonalphakeyword">+</span> a10<span class="Cnonalphakeyword">*</span>a01<span class="Cnonalphakeyword">*</span>a23<span class="Cnonalphakeyword">*</span>a32 <span class="Cnonalphakeyword">+</span> a10<span class="Cnonalphakeyword">*</span>a21<span class="Cnonalphakeyword">*</span>a02<span class="Cnonalphakeyword">*</span>a33 <span class="Cnonalphakeyword">-</span>
+      a10<span class="Cnonalphakeyword">*</span>a21<span class="Cnonalphakeyword">*</span>a03<span class="Cnonalphakeyword">*</span>a32 <span class="Cnonalphakeyword">-</span> a10<span class="Cnonalphakeyword">*</span>a31<span class="Cnonalphakeyword">*</span>a02<span class="Cnonalphakeyword">*</span>a23 <span class="Cnonalphakeyword">+</span> a10<span class="Cnonalphakeyword">*</span>a31<span class="Cnonalphakeyword">*</span>a03<span class="Cnonalphakeyword">*</span>a22 <span class="Cnonalphakeyword">+</span>
+      a20<span class="Cnonalphakeyword">*</span>a01<span class="Cnonalphakeyword">*</span>a12<span class="Cnonalphakeyword">*</span>a33 <span class="Cnonalphakeyword">-</span> a20<span class="Cnonalphakeyword">*</span>a01<span class="Cnonalphakeyword">*</span>a13<span class="Cnonalphakeyword">*</span>a32 <span class="Cnonalphakeyword">-</span> a20<span class="Cnonalphakeyword">*</span>a11<span class="Cnonalphakeyword">*</span>a02<span class="Cnonalphakeyword">*</span>a33 <span class="Cnonalphakeyword">+</span>
+      a20<span class="Cnonalphakeyword">*</span>a11<span class="Cnonalphakeyword">*</span>a03<span class="Cnonalphakeyword">*</span>a32 <span class="Cnonalphakeyword">+</span> a20<span class="Cnonalphakeyword">*</span>a31<span class="Cnonalphakeyword">*</span>a02<span class="Cnonalphakeyword">*</span>a13 <span class="Cnonalphakeyword">-</span> a20<span class="Cnonalphakeyword">*</span>a31<span class="Cnonalphakeyword">*</span>a03<span class="Cnonalphakeyword">*</span>a12 <span class="Cnonalphakeyword">-</span>
+      a30<span class="Cnonalphakeyword">*</span>a01<span class="Cnonalphakeyword">*</span>a12<span class="Cnonalphakeyword">*</span>a23 <span class="Cnonalphakeyword">+</span> a30<span class="Cnonalphakeyword">*</span>a01<span class="Cnonalphakeyword">*</span>a13<span class="Cnonalphakeyword">*</span>a22 <span class="Cnonalphakeyword">+</span> a30<span class="Cnonalphakeyword">*</span>a11<span class="Cnonalphakeyword">*</span>a02<span class="Cnonalphakeyword">*</span>a23 <span class="Cnonalphakeyword">-</span>
+      a30<span class="Cnonalphakeyword">*</span>a11<span class="Cnonalphakeyword">*</span>a03<span class="Cnonalphakeyword">*</span>a22 <span class="Cnonalphakeyword">-</span> a30<span class="Cnonalphakeyword">*</span>a21<span class="Cnonalphakeyword">*</span>a02<span class="Cnonalphakeyword">*</span>a13 <span class="Cnonalphakeyword">+</span> a30<span class="Cnonalphakeyword">*</span>a21<span class="Cnonalphakeyword">*</span>a03<span class="Cnonalphakeyword">*</span>a12
+    <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+
+  <span class="Clet">let</span> ccw <span class="Cnonalphakeyword">(</span>xu<span class="Cnonalphakeyword">,</span>yu<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>xv<span class="Cnonalphakeyword">,</span>yv<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>xw<span class="Cnonalphakeyword">,</span>yw<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span>
+    det <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">[|</span> xu<span class="Cnonalphakeyword">;</span> yu<span class="Cnonalphakeyword">;</span> 1.0 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span>
+           <span class="Cnonalphakeyword">[|</span> xv<span class="Cnonalphakeyword">;</span> yv<span class="Cnonalphakeyword">;</span> 1.0 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span>
+           <span class="Cnonalphakeyword">[|</span> xw<span class="Cnonalphakeyword">;</span> yw<span class="Cnonalphakeyword">;</span> 1.0 <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">&gt;</span> 0.0
+
+  <span class="Ccomment">(*i DEBUG</span>
+<span class="Ccomment">    let ccw (xu,yu) (xv,yv) (xw,yw) =</span>
+<span class="Ccomment">    eprintf "ccw((%.0f,%.0f),(%.0f,%.0f),(%.0f,%.0f)) -&gt; "</span>
+<span class="Ccomment">      xu yu xv yv xw yw;</span>
+<span class="Ccomment">    let r = ccw (xu,yu) (xv,yv) (xw,yw) in</span>
+<span class="Ccomment">    eprintf "%b\n" r; flush stderr;</span>
+<span class="Ccomment">    r</span>
+<span class="Ccomment">    i*)</span>
+
+  <span class="Clet">let</span> in_circle <span class="Cnonalphakeyword">(</span>xt<span class="Cnonalphakeyword">,</span>yt<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>xu<span class="Cnonalphakeyword">,</span>yu<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>xv<span class="Cnonalphakeyword">,</span>yv<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>xw<span class="Cnonalphakeyword">,</span>yw<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span>
+    det <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">[|</span> xt<span class="Cnonalphakeyword">;</span> yt<span class="Cnonalphakeyword">;</span> <span class="Cnonalphakeyword">(</span>xt <span class="Cnonalphakeyword">*</span> xt <span class="Cnonalphakeyword">+</span> yt <span class="Cnonalphakeyword">*</span> yt<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span> 1.0 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span>
+           <span class="Cnonalphakeyword">[|</span> xu<span class="Cnonalphakeyword">;</span> yu<span class="Cnonalphakeyword">;</span> <span class="Cnonalphakeyword">(</span>xu <span class="Cnonalphakeyword">*</span> xu <span class="Cnonalphakeyword">+</span> yu <span class="Cnonalphakeyword">*</span> yu<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span> 1.0 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span>
+           <span class="Cnonalphakeyword">[|</span> xv<span class="Cnonalphakeyword">;</span> yv<span class="Cnonalphakeyword">;</span> <span class="Cnonalphakeyword">(</span>xv <span class="Cnonalphakeyword">*</span> xv <span class="Cnonalphakeyword">+</span> yv <span class="Cnonalphakeyword">*</span> yv<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span> 1.0 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span>
+           <span class="Cnonalphakeyword">[|</span> xw<span class="Cnonalphakeyword">;</span> yw<span class="Cnonalphakeyword">;</span> <span class="Cnonalphakeyword">(</span>xw <span class="Cnonalphakeyword">*</span> xw <span class="Cnonalphakeyword">+</span> yw <span class="Cnonalphakeyword">*</span> yw<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span> 1.0 <span class="Cnonalphakeyword">|]</span><span class="Cnonalphakeyword">;</span> <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">&gt;</span> 0.0
+
+  <span class="Ccomment">(*i DEBUG</span>
+<span class="Ccomment">    let in_circle (xt,yt) (xu,yu) (xv,yv) (xw,yw) =</span>
+<span class="Ccomment">    eprintf "in_circle((%.0f,%.0f),(%.0f,%.0f),(%.0f,%.0f),(%.0f,%.0f)) -&gt; "</span>
+<span class="Ccomment">      xt yt xu yu xv yv xw yw;</span>
+<span class="Ccomment">    let r = in_circle (xt,yt) (xu,yu) (xv,yv) (xw,yw) in</span>
+<span class="Ccomment">    eprintf "%b\n" r; flush stderr;</span>
+<span class="Ccomment">    r</span>
+<span class="Ccomment">    i*)</span>
+
+<span class="Cend">end</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Float</span> <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Make</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">FloatPoints</span><span class="Cnonalphakeyword">)</span>
+
+<span class="Ccomment">(** Points with integer coordinates.</span>
+<span class="Ccomment">    We approximate using module [FloatPoints] but this could be made exact</span>
+<span class="Ccomment">    following Knuth's code in Axioms and Hulls *)</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">IntPoints</span> <span class="Cnonalphakeyword">=</span> <span class="Cstruct">struct</span>
+
+  <span class="Ctype">type</span> point <span class="Cnonalphakeyword">=</span> int <span class="Cnonalphakeyword">*</span> int
+
+  <span class="Clet">let</span> ccw <span class="Cnonalphakeyword">(</span>xu<span class="Cnonalphakeyword">,</span>yu<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>xv<span class="Cnonalphakeyword">,</span>yv<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>xw<span class="Cnonalphakeyword">,</span>yw<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span>
+    <span class="Cconstructor">FloatPoints</span><span class="Cnonalphakeyword">.</span>ccw
+      <span class="Cnonalphakeyword">(</span>float xu<span class="Cnonalphakeyword">,</span> float yu<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>float xv<span class="Cnonalphakeyword">,</span> float yv<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>float xw<span class="Cnonalphakeyword">,</span> float yw<span class="Cnonalphakeyword">)</span>
+
+  <span class="Clet">let</span> in_circle <span class="Cnonalphakeyword">(</span>xt<span class="Cnonalphakeyword">,</span>yt<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>xu<span class="Cnonalphakeyword">,</span>yu<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>xv<span class="Cnonalphakeyword">,</span>yv<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>xw<span class="Cnonalphakeyword">,</span>yw<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span>
+    <span class="Cconstructor">FloatPoints</span><span class="Cnonalphakeyword">.</span>in_circle
+      <span class="Cnonalphakeyword">(</span>float xt<span class="Cnonalphakeyword">,</span> float yt<span class="Cnonalphakeyword">)</span>
+      <span class="Cnonalphakeyword">(</span>float xu<span class="Cnonalphakeyword">,</span> float yu<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>float xv<span class="Cnonalphakeyword">,</span> float yv<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>float xw<span class="Cnonalphakeyword">,</span> float yw<span class="Cnonalphakeyword">)</span>
+
+<span class="Cend">end</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Int</span> <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Make</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">IntPoints</span><span class="Cnonalphakeyword">)</span>
+
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

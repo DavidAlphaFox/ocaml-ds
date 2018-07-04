@@ -1,0 +1,933 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+suffix_tree.ml</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="suffix_tree.ml"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(* Suffix trees *)</span>
+
+<span class="Ccomment">(* Following Ukkonen's algorithm as described in Gusfield's book "Algorithms </span>
+<span class="Ccomment">   on Strings, Trees and Sequences" *)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">Alphabet</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+  <span class="Ctype">type</span> t 
+  <span class="Cval">val</span> dummy : t
+  <span class="Cval">val</span> equal : t <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> bool
+  <span class="Cval">val</span> compare : t <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> int
+  <span class="Cval">val</span> print :  <span class="Cconstructor">Format</span><span class="Cnonalphakeyword">.</span>formatter <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> unit
+  <span class="Ctype">type</span> s
+  <span class="Cval">val</span> length : s <span class="Cnonalphakeyword">-&gt;</span> int
+  <span class="Cval">val</span> get : s <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> t
+<span class="Cend">end</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">Branching</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+  <span class="Ctype">type</span> key
+  <span class="Ctype">type</span> 'a t 
+  <span class="Cval">val</span> create : unit <span class="Cnonalphakeyword">-&gt;</span> 'a t
+  <span class="Cval">val</span> add : 'a t <span class="Cnonalphakeyword">-&gt;</span> key <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> unit
+  <span class="Cval">val</span> find : 'a t <span class="Cnonalphakeyword">-&gt;</span> key <span class="Cnonalphakeyword">-&gt;</span> 'a
+  <span class="Cval">val</span> iter : <span class="Cnonalphakeyword">(</span>key <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> unit<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Cend">end</span>
+
+<span class="Clet">let</span> debug <span class="Cnonalphakeyword">=</span> <span class="Cfalse">false</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Make</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">A</span> : <span class="Cconstructor">Alphabet</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">B</span> : <span class="Cconstructor">Branching</span> <span class="Cwith">with</span> <span class="Ctype">type</span> key <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>t<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cstruct">struct</span>
+
+  <span class="Ctype">type</span> node <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span>
+    <span class="Cmutable">mutable</span> label_start : int<span class="Cnonalphakeyword">;</span>
+    <span class="Cmutable">mutable</span> label_end : int<span class="Cnonalphakeyword">;</span>
+    <span class="Cmutable">mutable</span> father : node<span class="Cnonalphakeyword">;</span>
+    <span class="Cmutable">mutable</span> node_type : node_type<span class="Cnonalphakeyword">;</span>
+    <span class="Cmutable">mutable</span> suffix_link : node<span class="Cnonalphakeyword">;</span>
+    path_position : int
+  <span class="Cnonalphakeyword">}</span>
+
+  <span class="Cand">and</span> node_type <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Leaf</span> <span class="Cof">of</span> int <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cof">of</span> node <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>t
+
+  <span class="Ctype">type</span> t <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> tree_string : <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>s<span class="Cnonalphakeyword">;</span> tree_root : node<span class="Cnonalphakeyword">;</span> <span class="Cnonalphakeyword">}</span>
+
+  <span class="Copen">open</span> <span class="Cconstructor">Format</span>
+
+  <span class="Clet">let</span> print fmt t <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>length t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> print_node n depth <span class="Cnonalphakeyword">=</span>
+      <span class="Cif">if</span> depth <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 1 <span class="Cto">to</span> depth <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span> printf <span class="Cstring">"|"</span><span class="Cnonalphakeyword">;</span> <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+        fprintf fmt <span class="Cstring">"+"</span><span class="Cnonalphakeyword">;</span>
+        <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> n<span class="Cnonalphakeyword">.</span>label_start <span class="Cto">to</span> n<span class="Cnonalphakeyword">.</span>label_end <span class="Cdo">do</span>
+          <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>print fmt <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> i == m<span class="Cnonalphakeyword">+</span>1 <span class="Cthen">then</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>dummy <span class="Celse">else</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>get t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cnonalphakeyword">(</span>i-1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+        <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+        <span class="Cif">if</span> debug <span class="Cthen">then</span>
+          fprintf fmt <span class="Cstring">"  \t\t\t(%d,%d)"</span> n<span class="Cnonalphakeyword">.</span>label_start n<span class="Cnonalphakeyword">.</span>label_end<span class="Cnonalphakeyword">;</span>
+        fprintf fmt <span class="Cstring">"@\n"</span>
+      <span class="Cend">end</span><span class="Cnonalphakeyword">;</span>
+      <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span> 
+        <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span>
+        <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>iter <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <span class="Cnonalphakeyword">_</span> n <span class="Cnonalphakeyword">-&gt;</span> print_node n <span class="Cnonalphakeyword">(</span>depth<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> b
+    <span class="Cin">in</span>
+    print_node t<span class="Cnonalphakeyword">.</span>tree_root 0
+      
+  <span class="Ccomment">(* a dummy node that will never appear in returned suffix trees *)</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> dummy_node <span class="Cnonalphakeyword">=</span> 
+    <span class="Cnonalphakeyword">{</span> label_start <span class="Cnonalphakeyword">=</span> 0<span class="Cnonalphakeyword">;</span> label_end <span class="Cnonalphakeyword">=</span> 0<span class="Cnonalphakeyword">;</span> father <span class="Cnonalphakeyword">=</span> dummy_node<span class="Cnonalphakeyword">;</span> 
+      node_type <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>-1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span> suffix_link <span class="Cnonalphakeyword">=</span> dummy_node<span class="Cnonalphakeyword">;</span> path_position <span class="Cnonalphakeyword">=</span> 0 <span class="Cnonalphakeyword">}</span>
+
+  <span class="Clet">let</span> create_node <span class="Cnonalphakeyword">?</span><span class="Cnonalphakeyword">(</span>suffix_link<span class="Cnonalphakeyword">=</span>dummy_node<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">~</span>father ls le nt pp <span class="Cnonalphakeyword">=</span> 
+    <span class="Cnonalphakeyword">{</span> label_start <span class="Cnonalphakeyword">=</span> ls<span class="Cnonalphakeyword">;</span> label_end <span class="Cnonalphakeyword">=</span> le<span class="Cnonalphakeyword">;</span> father <span class="Cnonalphakeyword">=</span> father<span class="Cnonalphakeyword">;</span> 
+      node_type <span class="Cnonalphakeyword">=</span> nt<span class="Cnonalphakeyword">;</span> suffix_link <span class="Cnonalphakeyword">=</span> suffix_link<span class="Cnonalphakeyword">;</span> path_position <span class="Cnonalphakeyword">=</span> pp <span class="Cnonalphakeyword">}</span>
+
+  <span class="Ctype">type</span> rule <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Rule1</span> <span class="Cbar">|</span> <span class="Cconstructor">Rule2</span> <span class="Cbar">|</span> <span class="Cconstructor">Rule3</span>
+
+  <span class="Ctype">type</span> position <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> <span class="Cmutable">mutable</span> pos_node : node<span class="Cnonalphakeyword">;</span> <span class="Cmutable">mutable</span> pos_in_edge : int <span class="Cnonalphakeyword">}</span>
+
+  <span class="Ctype">type</span> extension_rule_2 <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">New_son</span> <span class="Cbar">|</span> <span class="Cconstructor">Split</span>
+
+  <span class="Ccomment">(* Ukkonen's algorithm *)</span>
+  <span class="Clet">let</span> create s <span class="Cnonalphakeyword">=</span> 
+    <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>length s <span class="Cin">in</span>
+    <span class="Ccomment">(* we do not build [s$]; instead we override [get] to cover [1..m+1] *)</span>
+    <span class="Clet">let</span> get i <span class="Cnonalphakeyword">=</span> 
+      <span class="Cassert">assert</span> <span class="Cnonalphakeyword">(</span>1 &lt;= i <span class="Cnonalphakeyword">&amp;&amp;</span> i &lt;= m<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+      <span class="Cif">if</span> i &lt;= m <span class="Cthen">then</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>get s <span class="Cnonalphakeyword">(</span>i-1<span class="Cnonalphakeyword">)</span> <span class="Celse">else</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>dummy
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* the root tree and the first node *)</span>
+    <span class="Clet">let</span> root_sons <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>create <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> root <span class="Cnonalphakeyword">=</span> 
+      <span class="Cnonalphakeyword">{</span> label_start <span class="Cnonalphakeyword">=</span> 0<span class="Cnonalphakeyword">;</span> label_end <span class="Cnonalphakeyword">=</span> 0<span class="Cnonalphakeyword">;</span> father <span class="Cnonalphakeyword">=</span> root<span class="Cnonalphakeyword">;</span> 
+        node_type <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Branch</span> root_sons<span class="Cnonalphakeyword">;</span> suffix_link <span class="Cnonalphakeyword">=</span> root<span class="Cnonalphakeyword">;</span> path_position <span class="Cnonalphakeyword">=</span> 0 <span class="Cnonalphakeyword">}</span> 
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> tree <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> tree_string <span class="Cnonalphakeyword">=</span> s<span class="Cnonalphakeyword">;</span> tree_root <span class="Cnonalphakeyword">=</span> root <span class="Cnonalphakeyword">}</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> create_node <span class="Cnonalphakeyword">~</span>suffix_link:root <span class="Cnonalphakeyword">~</span>father:root 1 <span class="Cnonalphakeyword">(</span>m<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Leaf</span> 1<span class="Cnonalphakeyword">)</span> 1 <span class="Cin">in</span>
+    <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>add root_sons <span class="Cnonalphakeyword">(</span>get 1<span class="Cnonalphakeyword">)</span> n<span class="Cnonalphakeyword">;</span>
+    <span class="Ccomment">(* label end: during construction label end of a leaf is [!e] *)</span>
+    <span class="Clet">let</span> e <span class="Cnonalphakeyword">=</span> ref 0 <span class="Cin">in</span>
+    <span class="Clet">let</span> label_end n <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> !e
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> n<span class="Cnonalphakeyword">.</span>label_end
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* DEBUG *)</span>
+    <span class="Clet">let</span> print fmt t <span class="Cnonalphakeyword">=</span>
+      <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>length t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cin">in</span>
+      <span class="Clet">let</span> <span class="Crec">rec</span> print_node n depth <span class="Cnonalphakeyword">=</span>
+        <span class="Clet">let</span> e <span class="Cnonalphakeyword">=</span> label_end n <span class="Cin">in</span>
+        <span class="Cif">if</span> depth <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 1 <span class="Cto">to</span> depth <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span> printf <span class="Cstring">"|"</span><span class="Cnonalphakeyword">;</span> <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+          fprintf fmt <span class="Cstring">"+"</span><span class="Cnonalphakeyword">;</span>
+          <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> n<span class="Cnonalphakeyword">.</span>label_start <span class="Cto">to</span> e <span class="Cdo">do</span>
+            <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>print fmt 
+              <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> i == m<span class="Cnonalphakeyword">+</span>1 <span class="Cthen">then</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>dummy <span class="Celse">else</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>get t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cnonalphakeyword">(</span>i-1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+          <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+          <span class="Cif">if</span> debug <span class="Cthen">then</span>
+            fprintf fmt <span class="Cstring">"  \t\t\t(%d,%d)"</span> n<span class="Cnonalphakeyword">.</span>label_start e<span class="Cnonalphakeyword">;</span>
+          fprintf fmt <span class="Cstring">"@\n"</span>
+        <span class="Cend">end</span><span class="Cnonalphakeyword">;</span>
+        <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span> 
+          <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span>
+          <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>iter <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <span class="Cnonalphakeyword">_</span> n <span class="Cnonalphakeyword">-&gt;</span> print_node n <span class="Cnonalphakeyword">(</span>depth<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> b
+      <span class="Cin">in</span>
+      print_node t<span class="Cnonalphakeyword">.</span>tree_root 0
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* END DEBUG *)</span>
+    <span class="Clet">let</span> suffix_less <span class="Cnonalphakeyword">=</span> ref dummy_node <span class="Cin">in</span>
+    <span class="Clet">let</span> set_suffix_link n <span class="Cnonalphakeyword">=</span> 
+      <span class="Cif">if</span> !suffix_less <span class="Cnonalphakeyword">!=</span> dummy_node <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        !suffix_less<span class="Cnonalphakeyword">.</span>suffix_link <span class="Cnonalphakeyword">&lt;-</span> n<span class="Cnonalphakeyword">;</span>
+        suffix_less <span class="Cnonalphakeyword">:=</span> dummy_node
+      <span class="Cend">end</span>
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> pos <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> pos_node <span class="Cnonalphakeyword">=</span> root<span class="Cnonalphakeyword">;</span> pos_in_edge <span class="Cnonalphakeyword">=</span> 0 <span class="Cnonalphakeyword">}</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> label_length n <span class="Cnonalphakeyword">=</span> label_end n <span class="Cnonalphakeyword">-</span> n<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">+</span> 1 <span class="Cin">in</span>
+    <span class="Clet">let</span> last_char_in_edge <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> 
+      <span class="Cif">if</span> debug <span class="Cthen">then</span> printf <span class="Cstring">"last_char_in_edge = %b@."</span> 
+        <span class="Cnonalphakeyword">(</span>pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">=</span> label_length pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+      pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">=</span> label_length pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">-</span> 1 
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* select the right branch *)</span>
+    <span class="Clet">let</span> find_son n c <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> dummy_node
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Ctry">try</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>find b c <span class="Cwith">with</span> <span class="Cconstructor">Not_found</span> <span class="Cnonalphakeyword">-&gt;</span> dummy_node<span class="Cnonalphakeyword">)</span>
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* tracing a string down the tree (updating [pos]) *)</span>
+    <span class="Clet">let</span> trace_single_edge <span class="Cnonalphakeyword">(</span>gs<span class="Cnonalphakeyword">,</span>ge<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">~</span>skip <span class="Cnonalphakeyword">=</span>
+      <span class="Clet">let</span> cont_node <span class="Cnonalphakeyword">=</span> find_son pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">(</span>get gs<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Cif">if</span> cont_node == dummy_node <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> label_length pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">;</span>
+        0<span class="Cnonalphakeyword">,</span> <span class="Ctrue">true</span>
+      <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+        pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> cont_node<span class="Cnonalphakeyword">;</span>
+        <span class="Clet">let</span> length <span class="Cnonalphakeyword">=</span> label_length pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cin">in</span>
+        <span class="Clet">let</span> str_len <span class="Cnonalphakeyword">=</span> ge <span class="Cnonalphakeyword">-</span> gs <span class="Cnonalphakeyword">+</span> 1 <span class="Cin">in</span>
+        <span class="Cif">if</span> skip <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          <span class="Cif">if</span> length &lt;= str_len <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+            pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> length <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">;</span>
+            length<span class="Cnonalphakeyword">,</span> not <span class="Cnonalphakeyword">(</span>length <span class="Cnonalphakeyword">&lt;</span> str_len<span class="Cnonalphakeyword">)</span>
+          <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+            pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> str_len <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">;</span>
+            str_len<span class="Cnonalphakeyword">,</span> <span class="Ctrue">true</span>
+          <span class="Cend">end</span>
+        <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+          <span class="Clet">let</span> length <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> str_len <span class="Cnonalphakeyword">&lt;</span> length <span class="Cthen">then</span> str_len <span class="Celse">else</span> length <span class="Cin">in</span>
+          pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> 1<span class="Cnonalphakeyword">;</span>
+          <span class="Clet">let</span> <span class="Crec">rec</span> loop chars_found <span class="Cnonalphakeyword">=</span>
+            <span class="Cif">if</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;</span> length <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+              <span class="Cif">if</span> not <span class="Cnonalphakeyword">(</span><span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>equal 
+                        <span class="Cnonalphakeyword">(</span>get <span class="Cnonalphakeyword">(</span>pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">+</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+                        <span class="Cnonalphakeyword">(</span>get <span class="Cnonalphakeyword">(</span>gs <span class="Cnonalphakeyword">+</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> 
+              <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+                pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">;</span>
+                chars_found<span class="Cnonalphakeyword">,</span> <span class="Ctrue">true</span>
+              <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+                pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">;</span>
+                loop <span class="Cnonalphakeyword">(</span>succ chars_found<span class="Cnonalphakeyword">)</span>
+              <span class="Cend">end</span>
+            <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+              pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">;</span>
+              chars_found<span class="Cnonalphakeyword">,</span> not <span class="Cnonalphakeyword">(</span>chars_found <span class="Cnonalphakeyword">&lt;</span> str_len<span class="Cnonalphakeyword">)</span>
+            <span class="Cend">end</span>
+          <span class="Cin">in</span>
+          loop 1
+        <span class="Cend">end</span>
+      <span class="Cend">end</span>
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> trace_string gamma <span class="Cnonalphakeyword">~</span>skip <span class="Cnonalphakeyword">=</span>
+      <span class="Clet">let</span> <span class="Crec">rec</span> trace chars_found <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>gs<span class="Cnonalphakeyword">,</span>ge<span class="Cnonalphakeyword">)</span> <span class="Cas">as</span> g<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span>
+        pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> 0<span class="Cnonalphakeyword">;</span>
+        <span class="Clet">let</span> edge_chars_found<span class="Cnonalphakeyword">,</span> search_done <span class="Cnonalphakeyword">=</span> trace_single_edge g <span class="Cnonalphakeyword">~</span>skip <span class="Cin">in</span>
+        <span class="Clet">let</span> chars_found <span class="Cnonalphakeyword">=</span> chars_found <span class="Cnonalphakeyword">+</span> edge_chars_found <span class="Cin">in</span>
+        <span class="Cif">if</span> not search_done <span class="Cthen">then</span> 
+          trace chars_found <span class="Cnonalphakeyword">(</span>gs <span class="Cnonalphakeyword">+</span> edge_chars_found<span class="Cnonalphakeyword">,</span> ge<span class="Cnonalphakeyword">)</span>
+        <span class="Celse">else</span>
+          chars_found
+      <span class="Cin">in</span>
+      trace 0 gamma
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* following the suffix link *)</span>
+    <span class="Clet">let</span> follow_suffix_link <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span>
+      <span class="Cif">if</span> pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">!=</span> root <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        <span class="Cif">if</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>suffix_link == dummy_node || not <span class="Cnonalphakeyword">(</span>last_char_in_edge <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+        <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          <span class="Cif">if</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>father == root <span class="Cthen">then</span>
+            pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> root
+          <span class="Celse">else</span> <span class="Cbegin">begin</span>
+            <span class="Clet">let</span> s <span class="Cnonalphakeyword">=</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>label_start <span class="Cin">in</span> 
+            <span class="Clet">let</span> gamma <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span>s<span class="Cnonalphakeyword">,</span> s <span class="Cnonalphakeyword">+</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+            pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>father<span class="Cnonalphakeyword">.</span>suffix_link<span class="Cnonalphakeyword">;</span>
+            ignore <span class="Cnonalphakeyword">(</span>trace_string gamma <span class="Cnonalphakeyword">~</span>skip:<span class="Ctrue">true</span><span class="Cnonalphakeyword">)</span>
+          <span class="Cend">end</span>
+        <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+          pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>suffix_link<span class="Cnonalphakeyword">;</span>
+          pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> label_length pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">-</span> 1
+        <span class="Cend">end</span>
+      <span class="Cend">end</span>
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* node creation (Rule 2) *)</span>
+    <span class="Clet">let</span> apply_extension_rule_2 ls le path_pos edge_pos <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">New_son</span> <span class="Cnonalphakeyword">-&gt;</span>
+          <span class="Cif">if</span> debug <span class="Cthen">then</span> printf <span class="Cstring">"rule 2: new leaf (%d,%d)@."</span> ls le<span class="Cnonalphakeyword">;</span>
+          <span class="Clet">let</span> leaf <span class="Cnonalphakeyword">=</span> 
+            create_node ls le <span class="Cnonalphakeyword">~</span>father:pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Leaf</span> path_pos<span class="Cnonalphakeyword">)</span> path_pos
+          <span class="Cin">in</span>
+          <span class="Cbegin">begin</span> <span class="Cmatch">match</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+            <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>add b <span class="Cnonalphakeyword">(</span>get ls<span class="Cnonalphakeyword">)</span> leaf<span class="Cnonalphakeyword">;</span> leaf
+            <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+          <span class="Cend">end</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Split</span> <span class="Cnonalphakeyword">-&gt;</span>
+          <span class="Cif">if</span> debug <span class="Cthen">then</span> printf <span class="Cstring">"rule 2: split (%d,%d)@."</span> ls le<span class="Cnonalphakeyword">;</span>
+          <span class="Clet">let</span> node <span class="Cnonalphakeyword">=</span> pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cin">in</span>
+          <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>create <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+          <span class="Clet">let</span> intl <span class="Cnonalphakeyword">=</span> 
+            create_node node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">(</span>node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">+</span> edge_pos<span class="Cnonalphakeyword">)</span> 
+              <span class="Cnonalphakeyword">~</span>father:node<span class="Cnonalphakeyword">.</span>father <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Branch</span> b<span class="Cnonalphakeyword">)</span> node<span class="Cnonalphakeyword">.</span>path_position
+          <span class="Cin">in</span>
+          node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">&lt;-</span> node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">+</span> edge_pos <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">;</span>
+          <span class="Clet">let</span> leaf <span class="Cnonalphakeyword">=</span> create_node <span class="Cnonalphakeyword">~</span>father:intl ls le <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Leaf</span> path_pos<span class="Cnonalphakeyword">)</span> path_pos <span class="Cin">in</span>
+          <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>add b <span class="Cnonalphakeyword">(</span>get node<span class="Cnonalphakeyword">.</span>label_start<span class="Cnonalphakeyword">)</span> node<span class="Cnonalphakeyword">;</span>
+          <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>add b <span class="Cnonalphakeyword">(</span>get ls<span class="Cnonalphakeyword">)</span> leaf<span class="Cnonalphakeyword">;</span>
+          node<span class="Cnonalphakeyword">.</span>father <span class="Cnonalphakeyword">&lt;-</span> intl<span class="Cnonalphakeyword">;</span>
+          <span class="Cbegin">begin</span> <span class="Cmatch">match</span> intl<span class="Cnonalphakeyword">.</span>father<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+            <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>add b <span class="Cnonalphakeyword">(</span>get intl<span class="Cnonalphakeyword">.</span>label_start<span class="Cnonalphakeyword">)</span> intl<span class="Cnonalphakeyword">;</span> intl
+            <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+          <span class="Cend">end</span>
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* Single Extension Algorithm (SEA) *)</span>
+    <span class="Clet">let</span> sea j0 i_1 after_rule_3 <span class="Cnonalphakeyword">=</span>
+      <span class="Cif">if</span> debug <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        printf <span class="Cstring">"%a@."</span> print tree<span class="Cnonalphakeyword">;</span>
+        printf <span class="Cstring">"extension: %d  phase+1: %d"</span> j0 i_1<span class="Cnonalphakeyword">;</span>
+        <span class="Cif">if</span> after_rule_3 <span class="Cthen">then</span> 
+          printf <span class="Cstring">"   starting at (%d,%d | %d)\n"</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>label_start 
+            <span class="Cnonalphakeyword">(</span>label_end pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">)</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge
+        <span class="Celse">else</span>
+          printf <span class="Cstring">"   followed from (%d,%d | %d)\n"</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>label_start
+            <span class="Cnonalphakeyword">(</span>label_end pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">)</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge
+      <span class="Cend">end</span><span class="Cnonalphakeyword">;</span>
+      <span class="Clet">let</span> j <span class="Cnonalphakeyword">=</span> ref j0 <span class="Cin">in</span>
+      <span class="Cif">if</span> not after_rule_3 <span class="Cthen">then</span> follow_suffix_link <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+      <span class="Clet">let</span> chars_found <span class="Cnonalphakeyword">=</span> 
+        <span class="Cif">if</span> pos<span class="Cnonalphakeyword">.</span>pos_node == root <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          trace_string <span class="Cnonalphakeyword">(</span>!j<span class="Cnonalphakeyword">,</span>i_1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">~</span>skip:<span class="Cfalse">false</span> 
+        <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+          j <span class="Cnonalphakeyword">:=</span> i_1<span class="Cnonalphakeyword">;</span>
+          <span class="Cif">if</span> last_char_in_edge <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+            <span class="Clet">let</span> tmp <span class="Cnonalphakeyword">=</span> find_son pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">(</span>get i_1<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+            <span class="Cif">if</span> tmp <span class="Cnonalphakeyword">!=</span> dummy_node <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+              pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> tmp<span class="Cnonalphakeyword">;</span>
+              pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> 0<span class="Cnonalphakeyword">;</span>
+              1
+            <span class="Cend">end</span> <span class="Celse">else</span>
+              0
+          <span class="Cend">end</span> <span class="Celse">else</span> 
+            <span class="Cif">if</span> 
+              <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>equal <span class="Cnonalphakeyword">(</span>get <span class="Cnonalphakeyword">(</span>pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">+</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> 
+                <span class="Cnonalphakeyword">(</span>get i_1<span class="Cnonalphakeyword">)</span> 
+            <span class="Cthen">then</span> <span class="Cbegin">begin</span>    
+              pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">;</span>
+              1
+            <span class="Cend">end</span> <span class="Celse">else</span> 
+              0
+        <span class="Cend">end</span>
+      <span class="Cin">in</span>
+      <span class="Cif">if</span> debug <span class="Cthen">then</span> printf <span class="Cstring">"chars_found = %d@."</span> chars_found<span class="Cnonalphakeyword">;</span>
+      <span class="Cif">if</span> chars_found <span class="Cnonalphakeyword">=</span> i_1 <span class="Cnonalphakeyword">-</span> !j <span class="Cnonalphakeyword">+</span> 1 <span class="Cthen">then</span> <span class="Cbegin">begin</span> 
+        <span class="Ccomment">(* Rule 3 applies *)</span>
+        <span class="Cif">if</span> debug <span class="Cthen">then</span> printf <span class="Cstring">"rule 3 (%d,%d)@."</span> !j i_1<span class="Cnonalphakeyword">;</span>
+        set_suffix_link pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>father<span class="Cnonalphakeyword">;</span>
+        <span class="Cconstructor">Rule3</span>
+      <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cif">if</span> last_char_in_edge <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> || pos<span class="Cnonalphakeyword">.</span>pos_node == root <span class="Cthen">then</span> 
+        <span class="Cmatch">match</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+          <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span>
+              ignore 
+                <span class="Cnonalphakeyword">(</span>apply_extension_rule_2 <span class="Cnonalphakeyword">(</span>!j <span class="Cnonalphakeyword">+</span> chars_found<span class="Cnonalphakeyword">)</span> i_1 j0 0 <span class="Cconstructor">New_son</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+              set_suffix_link pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">;</span>
+              <span class="Cconstructor">Rule2</span>
+          <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span>
+              <span class="Cconstructor">Rule1</span>
+      <span class="Celse">else</span> <span class="Cbegin">begin</span>
+        <span class="Clet">let</span> tmp <span class="Cnonalphakeyword">=</span> 
+          apply_extension_rule_2 <span class="Cnonalphakeyword">(</span>!j<span class="Cnonalphakeyword">+</span>chars_found<span class="Cnonalphakeyword">)</span> i_1 j0 pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cconstructor">Split</span>
+        <span class="Cin">in</span>
+        <span class="Cif">if</span> !suffix_less <span class="Cnonalphakeyword">!=</span> dummy_node <span class="Cthen">then</span> !suffix_less<span class="Cnonalphakeyword">.</span>suffix_link <span class="Cnonalphakeyword">&lt;-</span> tmp<span class="Cnonalphakeyword">;</span>
+        <span class="Cif">if</span> label_length tmp <span class="Cnonalphakeyword">=</span> 1 <span class="Cnonalphakeyword">&amp;&amp;</span> tmp<span class="Cnonalphakeyword">.</span>father == root <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          tmp<span class="Cnonalphakeyword">.</span>suffix_link <span class="Cnonalphakeyword">&lt;-</span> root<span class="Cnonalphakeyword">;</span>
+          suffix_less <span class="Cnonalphakeyword">:=</span> dummy_node
+        <span class="Cend">end</span> <span class="Celse">else</span>
+          suffix_less <span class="Cnonalphakeyword">:=</span> tmp<span class="Cnonalphakeyword">;</span>
+        pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> tmp<span class="Cnonalphakeyword">;</span>
+        <span class="Cconstructor">Rule2</span>
+      <span class="Cend">end</span>
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* Ukkonen main loop *)</span>
+    <span class="Clet">let</span> extension <span class="Cnonalphakeyword">=</span> ref 2 <span class="Cin">in</span>
+    <span class="Clet">let</span> last_rule_is_3 <span class="Cnonalphakeyword">=</span> ref <span class="Cfalse">false</span> <span class="Cin">in</span>
+    <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 2 <span class="Cto">to</span> m <span class="Cdo">do</span> <span class="Ccomment">(* phase [i+1] *)</span>
+      e <span class="Cnonalphakeyword">:=</span> i<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">;</span>
+      <span class="Clet">let</span> <span class="Crec">rec</span> spa <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> 
+        <span class="Cif">if</span> !extension &lt;= i<span class="Cnonalphakeyword">+</span>1 <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          <span class="Clet">let</span> rule <span class="Cnonalphakeyword">=</span> sea !extension <span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span> !last_rule_is_3 <span class="Cin">in</span>
+          last_rule_is_3 <span class="Cnonalphakeyword">:=</span> <span class="Cnonalphakeyword">(</span>rule <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Rule3</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+          <span class="Cif">if</span> not !last_rule_is_3 <span class="Cthen">then</span> <span class="Cbegin">begin</span> incr extension<span class="Cnonalphakeyword">;</span> spa <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cend">end</span>
+        <span class="Cend">end</span>
+      <span class="Cin">in</span>
+      spa <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span>
+    <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> set_leaf_end n <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> n<span class="Cnonalphakeyword">.</span>label_end <span class="Cnonalphakeyword">&lt;-</span> m<span class="Cnonalphakeyword">+</span>1
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>iter <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <span class="Cnonalphakeyword">_</span> n <span class="Cnonalphakeyword">-&gt;</span> set_leaf_end n<span class="Cnonalphakeyword">)</span> b
+    <span class="Cin">in</span>
+    set_leaf_end root<span class="Cnonalphakeyword">;</span>
+    tree
+
+  <span class="Clet">let</span> find t s <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>length t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cin">in</span>
+    <span class="Clet">let</span> p <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>length s <span class="Cin">in</span>
+    <span class="Clet">let</span> get i <span class="Cnonalphakeyword">=</span> 
+      <span class="Cassert">assert</span> <span class="Cnonalphakeyword">(</span>1 &lt;= i <span class="Cnonalphakeyword">&amp;&amp;</span> i &lt;= m<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+      <span class="Cif">if</span> i &lt;= m <span class="Cthen">then</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>get t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cnonalphakeyword">(</span>i-1<span class="Cnonalphakeyword">)</span> <span class="Celse">else</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>dummy
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> find_son n c <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> raise <span class="Cconstructor">Not_found</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>find b c
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> descend n j <span class="Cnonalphakeyword">=</span>
+      <span class="Clet">let</span> <span class="Crec">rec</span> descend_edge j k <span class="Cnonalphakeyword">=</span>
+        <span class="Cif">if</span> j <span class="Cnonalphakeyword">&lt;</span> p <span class="Cnonalphakeyword">&amp;&amp;</span> k &lt;= n<span class="Cnonalphakeyword">.</span>label_end <span class="Cnonalphakeyword">&amp;&amp;</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>equal <span class="Cnonalphakeyword">(</span>get k<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>get s j<span class="Cnonalphakeyword">)</span> <span class="Cthen">then</span>
+          descend_edge <span class="Cnonalphakeyword">(</span>succ j<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>succ k<span class="Cnonalphakeyword">)</span>
+        <span class="Celse">else</span> <span class="Cif">if</span> j <span class="Cnonalphakeyword">=</span> p <span class="Cthen">then</span>
+          <span class="Cnonalphakeyword">{</span> pos_node <span class="Cnonalphakeyword">=</span> n<span class="Cnonalphakeyword">;</span> pos_in_edge <span class="Cnonalphakeyword">=</span> k <span class="Cnonalphakeyword">}</span>
+        <span class="Celse">else</span> <span class="Cif">if</span> k <span class="Cnonalphakeyword">&gt;</span> n<span class="Cnonalphakeyword">.</span>label_end <span class="Cthen">then</span>
+          descend <span class="Cnonalphakeyword">(</span>find_son n <span class="Cnonalphakeyword">(</span><span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>get s j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> j
+        <span class="Celse">else</span>
+          raise <span class="Cconstructor">Not_found</span>
+      <span class="Cin">in</span>
+      descend_edge j n<span class="Cnonalphakeyword">.</span>label_start
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> n0 <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> t<span class="Cnonalphakeyword">.</span>tree_root<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>find b <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> p <span class="Cnonalphakeyword">=</span> 0 <span class="Cthen">then</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>dummy <span class="Celse">else</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>get s 0<span class="Cnonalphakeyword">)</span> 
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+    <span class="Cin">in</span>
+    descend n0 0
+
+  <span class="Clet">let</span> substring t s <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>length s <span class="Cnonalphakeyword">=</span> 0 <span class="Cthen">then</span> 
+      0 
+    <span class="Celse">else</span>
+      <span class="Clet">let</span> p <span class="Cnonalphakeyword">=</span> find t s <span class="Cin">in</span>
+      p<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>path_position <span class="Cnonalphakeyword">-</span> 1
+
+  <span class="Clet">let</span> leaves f p <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> iter n <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> j <span class="Cnonalphakeyword">-&gt;</span> f <span class="Cnonalphakeyword">(</span>j <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">)</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>iter <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <span class="Cnonalphakeyword">_</span> n <span class="Cnonalphakeyword">-&gt;</span> iter n<span class="Cnonalphakeyword">)</span> b
+    <span class="Cin">in</span>
+    iter p<span class="Cnonalphakeyword">.</span>pos_node
+
+<span class="Cend">end</span>
+
+  
+<span class="Ccomment">(* some usual branching implementations *)</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Bmap</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">X</span> : <span class="Cconstructor">Map</span><span class="Cnonalphakeyword">.</span><span class="Cconstructor">OrderedType</span><span class="Cnonalphakeyword">)</span> : <span class="Cconstructor">Branching</span> <span class="Cwith">with</span> <span class="Ctype">type</span> key <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t <span class="Cnonalphakeyword">=</span> 
+<span class="Cstruct">struct</span>
+  <span class="Ctype">type</span> key <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t
+  <span class="Cmodule">module</span> <span class="Cconstructor">M</span> <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Map</span><span class="Cnonalphakeyword">.</span><span class="Cconstructor">Make</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">X</span><span class="Cnonalphakeyword">)</span>
+  <span class="Ctype">type</span> 'a t <span class="Cnonalphakeyword">=</span> 'a <span class="Cconstructor">M</span><span class="Cnonalphakeyword">.</span>t ref
+  <span class="Clet">let</span> create <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> ref <span class="Cconstructor">M</span><span class="Cnonalphakeyword">.</span>empty
+  <span class="Clet">let</span> add m k v <span class="Cnonalphakeyword">=</span> m <span class="Cnonalphakeyword">:=</span> <span class="Cconstructor">M</span><span class="Cnonalphakeyword">.</span>add k v !m
+  <span class="Clet">let</span> find m k <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">M</span><span class="Cnonalphakeyword">.</span>find k !m
+  <span class="Clet">let</span> iter f m <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">M</span><span class="Cnonalphakeyword">.</span>iter f !m
+<span class="Cend">end</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Barray</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">A</span> : <span class="Csig">sig</span> <span class="Cval">val</span> size : int <span class="Cend">end</span><span class="Cnonalphakeyword">)</span> : <span class="Cconstructor">Branching</span> <span class="Cwith">with</span> <span class="Ctype">type</span> key <span class="Cnonalphakeyword">=</span> int <span class="Cnonalphakeyword">=</span> 
+<span class="Cstruct">struct</span>
+  <span class="Ctype">type</span> key <span class="Cnonalphakeyword">=</span> int
+  <span class="Ctype">type</span> 'a t <span class="Cnonalphakeyword">=</span> 'a option array
+  <span class="Clet">let</span> create <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>create <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>size <span class="Cconstructor">None</span>
+  <span class="Clet">let</span> add m k v <span class="Cnonalphakeyword">=</span> m<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <span class="Cconstructor">Some</span> v
+  <span class="Clet">let</span> find m k <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> m<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">)</span> <span class="Cwith">with</span> <span class="Cconstructor">Some</span> v <span class="Cnonalphakeyword">-&gt;</span> v <span class="Cbar">|</span> <span class="Cconstructor">None</span> <span class="Cnonalphakeyword">-&gt;</span> raise <span class="Cconstructor">Not_found</span>
+  <span class="Clet">let</span> iter f m <span class="Cnonalphakeyword">=</span>
+    <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>iteri <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> k v <span class="Cnonalphakeyword">-&gt;</span> <span class="Cmatch">match</span> v <span class="Cwith">with</span> <span class="Cconstructor">None</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cbar">|</span> <span class="Cconstructor">Some</span> v <span class="Cnonalphakeyword">-&gt;</span> f k v<span class="Cnonalphakeyword">)</span> m
+<span class="Cend">end</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Blist</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">X</span> : <span class="Csig">sig</span> <span class="Ctype">type</span> t <span class="Cval">val</span> equal : t <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> bool <span class="Cend">end</span><span class="Cnonalphakeyword">)</span> 
+  : <span class="Cconstructor">Branching</span> <span class="Cwith">with</span> <span class="Ctype">type</span> key <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t <span class="Cnonalphakeyword">=</span> 
+<span class="Cstruct">struct</span>
+  <span class="Ctype">type</span> key <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t
+  <span class="Ctype">type</span> 'a t <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span>key <span class="Cnonalphakeyword">*</span> 'a<span class="Cnonalphakeyword">)</span> list ref
+  <span class="Clet">let</span> create <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">[</span><span class="Cnonalphakeyword">]</span>
+  <span class="Clet">let</span> add m k v <span class="Cnonalphakeyword">=</span> 
+    <span class="Clet">let</span> <span class="Crec">rec</span> replace <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+      <span class="Cbar">|</span> <span class="Cnonalphakeyword">[</span><span class="Cnonalphakeyword">]</span> <span class="Cnonalphakeyword">-&gt;</span> raise <span class="Cconstructor">Not_found</span>
+      <span class="Cbar">|</span> <span class="Cnonalphakeyword">(</span>a<span class="Cnonalphakeyword">,</span><span class="Cnonalphakeyword">_</span> <span class="Cas">as</span> p<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">::</span> l <span class="Cnonalphakeyword">-&gt;</span> <span class="Cif">if</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>equal k a <span class="Cthen">then</span> <span class="Cnonalphakeyword">(</span>a<span class="Cnonalphakeyword">,</span>v<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">::</span> l <span class="Celse">else</span> p <span class="Cnonalphakeyword">::</span> replace l
+    <span class="Cin">in</span>
+    m <span class="Cnonalphakeyword">:=</span> <span class="Ctry">try</span> replace !m <span class="Cwith">with</span> <span class="Cconstructor">Not_found</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span>k<span class="Cnonalphakeyword">,</span>v<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">::</span> !m
+  <span class="Clet">let</span> find m k <span class="Cnonalphakeyword">=</span> 
+    <span class="Clet">let</span> <span class="Crec">rec</span> lookup <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+      <span class="Cbar">|</span> <span class="Cnonalphakeyword">[</span><span class="Cnonalphakeyword">]</span> <span class="Cnonalphakeyword">-&gt;</span> raise <span class="Cconstructor">Not_found</span> 
+      <span class="Cbar">|</span> <span class="Cnonalphakeyword">(</span>a<span class="Cnonalphakeyword">,</span>b<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">::</span> l <span class="Cnonalphakeyword">-&gt;</span> <span class="Cif">if</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>equal k a <span class="Cthen">then</span> b <span class="Celse">else</span> lookup l
+    <span class="Cin">in</span>
+    lookup !m
+  <span class="Clet">let</span> iter f m <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">List</span><span class="Cnonalphakeyword">.</span>iter <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <span class="Cnonalphakeyword">(</span>a<span class="Cnonalphakeyword">,</span>b<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> f a b<span class="Cnonalphakeyword">)</span> !m
+<span class="Cend">end</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Bhash</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">A</span> : <span class="Csig">sig</span> <span class="Cval">val</span> size : int <span class="Cend">end</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">X</span> : <span class="Cconstructor">Hashtbl</span><span class="Cnonalphakeyword">.</span><span class="Cconstructor">HashedType</span><span class="Cnonalphakeyword">)</span> 
+  : <span class="Cconstructor">Branching</span> <span class="Cwith">with</span> <span class="Ctype">type</span> key <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t <span class="Cnonalphakeyword">=</span> 
+<span class="Cstruct">struct</span>
+  <span class="Ctype">type</span> key <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t
+  <span class="Cmodule">module</span> <span class="Cconstructor">H</span> <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Hashtbl</span><span class="Cnonalphakeyword">.</span><span class="Cconstructor">Make</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">X</span><span class="Cnonalphakeyword">)</span>
+  <span class="Ctype">type</span> 'a t <span class="Cnonalphakeyword">=</span> 'a <span class="Cconstructor">H</span><span class="Cnonalphakeyword">.</span>t
+  <span class="Clet">let</span> create <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">H</span><span class="Cnonalphakeyword">.</span>create <span class="Cconstructor">A</span><span class="Cnonalphakeyword">.</span>size
+  <span class="Clet">let</span> add m k v <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">H</span><span class="Cnonalphakeyword">.</span>replace m k v
+  <span class="Clet">let</span> find m k <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">H</span><span class="Cnonalphakeyword">.</span>find m k
+  <span class="Clet">let</span> iter <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">H</span><span class="Cnonalphakeyword">.</span>iter
+<span class="Cend">end</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">CharString</span> <span class="Cnonalphakeyword">=</span> <span class="Cstruct">struct</span>
+  <span class="Ctype">type</span> t <span class="Cnonalphakeyword">=</span> char
+  <span class="Clet">let</span> dummy <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Char</span><span class="Cnonalphakeyword">.</span>chr 0
+  <span class="Clet">let</span> equal x y <span class="Cnonalphakeyword">=</span> x == y
+  <span class="Clet">let</span> compare x y <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Char</span><span class="Cnonalphakeyword">.</span>code x <span class="Cnonalphakeyword">-</span> <span class="Cconstructor">Char</span><span class="Cnonalphakeyword">.</span>code y
+  <span class="Clet">let</span> hash c <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Char</span><span class="Cnonalphakeyword">.</span>code c
+  <span class="Clet">let</span> print fmt c <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Format</span><span class="Cnonalphakeyword">.</span>fprintf fmt <span class="Cstring">"%c"</span> c
+  <span class="Ctype">type</span> s <span class="Cnonalphakeyword">=</span> string
+  <span class="Clet">let</span> length <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>length
+  <span class="Clet">let</span> get <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>unsafe_get
+<span class="Cend">end</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">IntArray</span> <span class="Cnonalphakeyword">=</span> <span class="Cstruct">struct</span>
+  <span class="Ctype">type</span> t <span class="Cnonalphakeyword">=</span> int
+  <span class="Clet">let</span> dummy <span class="Cnonalphakeyword">=</span> -1
+  <span class="Clet">let</span> equal x y <span class="Cnonalphakeyword">=</span> x == y
+  <span class="Clet">let</span> compare <span class="Cnonalphakeyword">=</span> compare
+  <span class="Clet">let</span> hash c <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Char</span><span class="Cnonalphakeyword">.</span>code c
+  <span class="Clet">let</span> print fmt c <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Format</span><span class="Cnonalphakeyword">.</span>fprintf fmt <span class="Cstring">"%d"</span> c
+  <span class="Ctype">type</span> s <span class="Cnonalphakeyword">=</span> int array
+  <span class="Clet">let</span> length <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length
+  <span class="Clet">let</span> get <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get
+<span class="Cend">end</span>
+
+<span class="Ccomment">(* manually defunctorized code for type string *)</span>
+<span class="Cmodule">module</span> <span class="Cconstructor">Ukkonen</span> <span class="Cnonalphakeyword">=</span> <span class="Cstruct">struct</span>
+
+  <span class="Ccomment">(*module B = Bhash(struct let size = 17 end)(CharString)*)</span>
+  <span class="Cmodule">module</span> <span class="Cconstructor">B</span> <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Bmap</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">CharString</span><span class="Cnonalphakeyword">)</span>
+
+  <span class="Ctype">type</span> node <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span>
+    <span class="Cmutable">mutable</span> label_start : int<span class="Cnonalphakeyword">;</span>
+    <span class="Cmutable">mutable</span> label_end : int<span class="Cnonalphakeyword">;</span>
+    <span class="Cmutable">mutable</span> father : node<span class="Cnonalphakeyword">;</span>
+    <span class="Cmutable">mutable</span> node_type : node_type<span class="Cnonalphakeyword">;</span>
+    <span class="Cmutable">mutable</span> suffix_link : node<span class="Cnonalphakeyword">;</span>
+    path_position : int<span class="Cnonalphakeyword">;</span>
+  <span class="Cnonalphakeyword">}</span>
+
+  <span class="Cand">and</span> node_type <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Leaf</span> <span class="Cof">of</span> int <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cof">of</span> node <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>t
+
+  <span class="Ctype">type</span> t <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> tree_string : string<span class="Cnonalphakeyword">;</span> tree_root : node<span class="Cnonalphakeyword">;</span> <span class="Cnonalphakeyword">}</span>
+
+  <span class="Copen">open</span> <span class="Cconstructor">Format</span>
+
+  <span class="Clet">let</span> print fmt t <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>length t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> print_node n depth <span class="Cnonalphakeyword">=</span>
+      <span class="Cif">if</span> depth <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 1 <span class="Cto">to</span> depth <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span> printf <span class="Cstring">"|"</span><span class="Cnonalphakeyword">;</span> <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+        fprintf fmt <span class="Cstring">"+"</span><span class="Cnonalphakeyword">;</span>
+        <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> n<span class="Cnonalphakeyword">.</span>label_start <span class="Cto">to</span> n<span class="Cnonalphakeyword">.</span>label_end <span class="Cdo">do</span>
+          fprintf fmt <span class="Cstring">"%c"</span>
+            <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> i == m<span class="Cnonalphakeyword">+</span>1 <span class="Cthen">then</span> <span class="Cstring">'$'</span> <span class="Celse">else</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>unsafe_get t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cnonalphakeyword">(</span>i-1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+        <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+        <span class="Cif">if</span> debug <span class="Cthen">then</span>
+          fprintf fmt <span class="Cstring">"  \t\t\t(%d,%d)"</span> n<span class="Cnonalphakeyword">.</span>label_start n<span class="Cnonalphakeyword">.</span>label_end<span class="Cnonalphakeyword">;</span>
+        fprintf fmt <span class="Cstring">"@\n"</span>
+      <span class="Cend">end</span><span class="Cnonalphakeyword">;</span>
+      <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span> 
+        <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span>
+        <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>iter <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <span class="Cnonalphakeyword">_</span> n <span class="Cnonalphakeyword">-&gt;</span> print_node n <span class="Cnonalphakeyword">(</span>depth<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> b
+    <span class="Cin">in</span>
+    print_node t<span class="Cnonalphakeyword">.</span>tree_root 0
+      
+  <span class="Ccomment">(* a dummy node that will never appear in returned suffix trees *)</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> dummy_node <span class="Cnonalphakeyword">=</span> 
+    <span class="Cnonalphakeyword">{</span> label_start <span class="Cnonalphakeyword">=</span> 0<span class="Cnonalphakeyword">;</span> label_end <span class="Cnonalphakeyword">=</span> 0<span class="Cnonalphakeyword">;</span> father <span class="Cnonalphakeyword">=</span> dummy_node<span class="Cnonalphakeyword">;</span> 
+      node_type <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">(</span>-1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span> suffix_link <span class="Cnonalphakeyword">=</span> dummy_node<span class="Cnonalphakeyword">;</span> path_position <span class="Cnonalphakeyword">=</span> 0 <span class="Cnonalphakeyword">}</span>
+
+  <span class="Clet">let</span> create_node <span class="Cnonalphakeyword">?</span><span class="Cnonalphakeyword">(</span>suffix_link<span class="Cnonalphakeyword">=</span>dummy_node<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">~</span>father ls le nt pp <span class="Cnonalphakeyword">=</span> 
+    <span class="Cnonalphakeyword">{</span> label_start <span class="Cnonalphakeyword">=</span> ls<span class="Cnonalphakeyword">;</span> label_end <span class="Cnonalphakeyword">=</span> le<span class="Cnonalphakeyword">;</span> father <span class="Cnonalphakeyword">=</span> father<span class="Cnonalphakeyword">;</span> 
+      node_type <span class="Cnonalphakeyword">=</span> nt<span class="Cnonalphakeyword">;</span> suffix_link <span class="Cnonalphakeyword">=</span> suffix_link<span class="Cnonalphakeyword">;</span> path_position <span class="Cnonalphakeyword">=</span> pp <span class="Cnonalphakeyword">}</span>
+
+  <span class="Ctype">type</span> rule <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Rule1</span> <span class="Cbar">|</span> <span class="Cconstructor">Rule2</span> <span class="Cbar">|</span> <span class="Cconstructor">Rule3</span>
+
+  <span class="Ctype">type</span> position <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> <span class="Cmutable">mutable</span> pos_node : node<span class="Cnonalphakeyword">;</span> <span class="Cmutable">mutable</span> pos_in_edge : int <span class="Cnonalphakeyword">}</span>
+
+  <span class="Ctype">type</span> extension_rule_2 <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">New_son</span> <span class="Cbar">|</span> <span class="Cconstructor">Split</span>
+
+  <span class="Ccomment">(* Ukkonen's algorithm *)</span>
+  <span class="Clet">let</span> create s <span class="Cnonalphakeyword">=</span> 
+    <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>length s <span class="Cin">in</span>
+    <span class="Clet">let</span> s0 <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>make <span class="Cnonalphakeyword">(</span>m<span class="Cnonalphakeyword">+</span>2<span class="Cnonalphakeyword">)</span> <span class="Cstring">'\000'</span> <span class="Cin">in</span>
+    <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>blit s 0 s0 1 m<span class="Cnonalphakeyword">;</span>
+    <span class="Ccomment">(* we do not build [s$]; instead we override [get] to cover [1..m+1] *)</span>
+    <span class="Clet">let</span> get i <span class="Cnonalphakeyword">=</span> 
+      <span class="Cassert">assert</span> <span class="Cnonalphakeyword">(</span>1 &lt;= i <span class="Cnonalphakeyword">&amp;&amp;</span> i &lt;= m<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+      <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>unsafe_get s0 i
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* the root tree and the first node *)</span>
+    <span class="Clet">let</span> root_sons <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>create <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> root <span class="Cnonalphakeyword">=</span> 
+      <span class="Cnonalphakeyword">{</span> label_start <span class="Cnonalphakeyword">=</span> 0<span class="Cnonalphakeyword">;</span> label_end <span class="Cnonalphakeyword">=</span> 0<span class="Cnonalphakeyword">;</span> father <span class="Cnonalphakeyword">=</span> root<span class="Cnonalphakeyword">;</span> 
+        node_type <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Branch</span> root_sons<span class="Cnonalphakeyword">;</span> suffix_link <span class="Cnonalphakeyword">=</span> root<span class="Cnonalphakeyword">;</span> path_position <span class="Cnonalphakeyword">=</span> 0 <span class="Cnonalphakeyword">}</span> 
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> tree <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> tree_string <span class="Cnonalphakeyword">=</span> s<span class="Cnonalphakeyword">;</span> tree_root <span class="Cnonalphakeyword">=</span> root <span class="Cnonalphakeyword">}</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> create_node <span class="Cnonalphakeyword">~</span>suffix_link:root <span class="Cnonalphakeyword">~</span>father:root 1 <span class="Cnonalphakeyword">(</span>m<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Leaf</span> 1<span class="Cnonalphakeyword">)</span> 1 <span class="Cin">in</span>
+    <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>add root_sons <span class="Cnonalphakeyword">(</span>get 1<span class="Cnonalphakeyword">)</span> n<span class="Cnonalphakeyword">;</span>
+    <span class="Ccomment">(* label end: during construction label end of a leaf is [!e] *)</span>
+    <span class="Clet">let</span> e <span class="Cnonalphakeyword">=</span> ref 0 <span class="Cin">in</span>
+    <span class="Clet">let</span> label_end n <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> !e
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> n<span class="Cnonalphakeyword">.</span>label_end
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* DEBUG *)</span>
+    <span class="Clet">let</span> print fmt t <span class="Cnonalphakeyword">=</span>
+      <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>length t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cin">in</span>
+      <span class="Clet">let</span> <span class="Crec">rec</span> print_node n depth <span class="Cnonalphakeyword">=</span>
+        <span class="Clet">let</span> e <span class="Cnonalphakeyword">=</span> label_end n <span class="Cin">in</span>
+        <span class="Cif">if</span> depth <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 1 <span class="Cto">to</span> depth <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span> printf <span class="Cstring">"|"</span><span class="Cnonalphakeyword">;</span> <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+          fprintf fmt <span class="Cstring">"+"</span><span class="Cnonalphakeyword">;</span>
+          <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> n<span class="Cnonalphakeyword">.</span>label_start <span class="Cto">to</span> e <span class="Cdo">do</span>
+            fprintf fmt <span class="Cstring">"%c"</span>
+              <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> i == m<span class="Cnonalphakeyword">+</span>1 <span class="Cthen">then</span> <span class="Cstring">'$'</span> <span class="Celse">else</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>unsafe_get t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cnonalphakeyword">(</span>i-1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+          <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+          <span class="Cif">if</span> debug <span class="Cthen">then</span>
+            fprintf fmt <span class="Cstring">"  \t\t\t(%d,%d)"</span> n<span class="Cnonalphakeyword">.</span>label_start e<span class="Cnonalphakeyword">;</span>
+          fprintf fmt <span class="Cstring">"@\n"</span>
+        <span class="Cend">end</span><span class="Cnonalphakeyword">;</span>
+        <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span> 
+          <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span>
+          <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>iter <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <span class="Cnonalphakeyword">_</span> n <span class="Cnonalphakeyword">-&gt;</span> print_node n <span class="Cnonalphakeyword">(</span>depth<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> b
+      <span class="Cin">in</span>
+      print_node t<span class="Cnonalphakeyword">.</span>tree_root 0
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* END DEBUG *)</span>
+    <span class="Clet">let</span> suffix_less <span class="Cnonalphakeyword">=</span> ref dummy_node <span class="Cin">in</span>
+    <span class="Clet">let</span> set_suffix_link n <span class="Cnonalphakeyword">=</span> 
+      <span class="Cif">if</span> !suffix_less <span class="Cnonalphakeyword">!=</span> dummy_node <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        !suffix_less<span class="Cnonalphakeyword">.</span>suffix_link <span class="Cnonalphakeyword">&lt;-</span> n<span class="Cnonalphakeyword">;</span>
+        suffix_less <span class="Cnonalphakeyword">:=</span> dummy_node
+      <span class="Cend">end</span>
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> pos <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> pos_node <span class="Cnonalphakeyword">=</span> root<span class="Cnonalphakeyword">;</span> pos_in_edge <span class="Cnonalphakeyword">=</span> 0 <span class="Cnonalphakeyword">}</span> <span class="Cin">in</span>
+    <span class="Clet">let</span> label_length n <span class="Cnonalphakeyword">=</span> label_end n <span class="Cnonalphakeyword">-</span> n<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">+</span> 1 <span class="Cin">in</span>
+    <span class="Clet">let</span> last_char_in_edge <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> 
+      <span class="Cif">if</span> debug <span class="Cthen">then</span> printf <span class="Cstring">"last_char_in_edge = %b@."</span> 
+        <span class="Cnonalphakeyword">(</span>pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">=</span> label_length pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+      pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">=</span> label_length pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">-</span> 1 
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* select the right branch *)</span>
+    <span class="Clet">let</span> find_son n c <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> dummy_node
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Ctry">try</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>find b c <span class="Cwith">with</span> <span class="Cconstructor">Not_found</span> <span class="Cnonalphakeyword">-&gt;</span> dummy_node<span class="Cnonalphakeyword">)</span>
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* tracing a string down the tree (updating [pos]) *)</span>
+    <span class="Clet">let</span> trace_single_edge <span class="Cnonalphakeyword">(</span>gs<span class="Cnonalphakeyword">,</span>ge<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">~</span>skip <span class="Cnonalphakeyword">=</span>
+      <span class="Clet">let</span> cont_node <span class="Cnonalphakeyword">=</span> find_son pos<span class="Cnonalphakeyword">.</span>pos_node s0<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">[</span>gs<span class="Cnonalphakeyword">]</span> <span class="Cin">in</span>
+      <span class="Cif">if</span> cont_node == dummy_node <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> label_length pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">;</span>
+        0<span class="Cnonalphakeyword">,</span> <span class="Ctrue">true</span>
+      <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+        pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> cont_node<span class="Cnonalphakeyword">;</span>
+        <span class="Clet">let</span> length <span class="Cnonalphakeyword">=</span> label_length pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cin">in</span>
+        <span class="Clet">let</span> str_len <span class="Cnonalphakeyword">=</span> ge <span class="Cnonalphakeyword">-</span> gs <span class="Cnonalphakeyword">+</span> 1 <span class="Cin">in</span>
+        <span class="Cif">if</span> skip <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          <span class="Cif">if</span> length &lt;= str_len <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+            pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> length <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">;</span>
+            length<span class="Cnonalphakeyword">,</span> not <span class="Cnonalphakeyword">(</span>length <span class="Cnonalphakeyword">&lt;</span> str_len<span class="Cnonalphakeyword">)</span>
+          <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+            pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> str_len <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">;</span>
+            str_len<span class="Cnonalphakeyword">,</span> <span class="Ctrue">true</span>
+          <span class="Cend">end</span>
+        <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+          <span class="Clet">let</span> length <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> str_len <span class="Cnonalphakeyword">&lt;</span> length <span class="Cthen">then</span> str_len <span class="Celse">else</span> length <span class="Cin">in</span>
+          pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> 1<span class="Cnonalphakeyword">;</span>
+          <span class="Clet">let</span> <span class="Crec">rec</span> loop chars_found <span class="Cnonalphakeyword">=</span>
+            <span class="Cif">if</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;</span> length <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+              <span class="Cif">if</span> not <span class="Cnonalphakeyword">(</span>s0<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">[</span>pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">+</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge<span class="Cnonalphakeyword">]</span> ==
+                        s0<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">[</span>gs <span class="Cnonalphakeyword">+</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge<span class="Cnonalphakeyword">]</span><span class="Cnonalphakeyword">)</span> 
+              <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+                pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">;</span>
+                chars_found<span class="Cnonalphakeyword">,</span> <span class="Ctrue">true</span>
+              <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+                pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">;</span>
+                loop <span class="Cnonalphakeyword">(</span>succ chars_found<span class="Cnonalphakeyword">)</span>
+              <span class="Cend">end</span>
+            <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+              pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">;</span>
+              chars_found<span class="Cnonalphakeyword">,</span> not <span class="Cnonalphakeyword">(</span>chars_found <span class="Cnonalphakeyword">&lt;</span> str_len<span class="Cnonalphakeyword">)</span>
+            <span class="Cend">end</span>
+          <span class="Cin">in</span>
+          loop 1
+        <span class="Cend">end</span>
+      <span class="Cend">end</span>
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> trace_string gamma <span class="Cnonalphakeyword">~</span>skip <span class="Cnonalphakeyword">=</span>
+      <span class="Clet">let</span> <span class="Crec">rec</span> trace chars_found <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>gs<span class="Cnonalphakeyword">,</span>ge<span class="Cnonalphakeyword">)</span> <span class="Cas">as</span> g<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span>
+        pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> 0<span class="Cnonalphakeyword">;</span>
+        <span class="Clet">let</span> edge_chars_found<span class="Cnonalphakeyword">,</span> search_done <span class="Cnonalphakeyword">=</span> trace_single_edge g <span class="Cnonalphakeyword">~</span>skip <span class="Cin">in</span>
+        <span class="Clet">let</span> chars_found <span class="Cnonalphakeyword">=</span> chars_found <span class="Cnonalphakeyword">+</span> edge_chars_found <span class="Cin">in</span>
+        <span class="Cif">if</span> not search_done <span class="Cthen">then</span> 
+          trace chars_found <span class="Cnonalphakeyword">(</span>gs <span class="Cnonalphakeyword">+</span> edge_chars_found<span class="Cnonalphakeyword">,</span> ge<span class="Cnonalphakeyword">)</span>
+        <span class="Celse">else</span>
+          chars_found
+      <span class="Cin">in</span>
+      trace 0 gamma
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* following the suffix link *)</span>
+    <span class="Clet">let</span> follow_suffix_link <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span>
+      <span class="Cif">if</span> pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">!=</span> root <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        <span class="Cif">if</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>suffix_link == dummy_node || not <span class="Cnonalphakeyword">(</span>last_char_in_edge <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+        <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          <span class="Cif">if</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>father == root <span class="Cthen">then</span>
+            pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> root
+          <span class="Celse">else</span> <span class="Cbegin">begin</span>
+            <span class="Clet">let</span> s <span class="Cnonalphakeyword">=</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>label_start <span class="Cin">in</span> 
+            <span class="Clet">let</span> gamma <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span>s<span class="Cnonalphakeyword">,</span> s <span class="Cnonalphakeyword">+</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+            pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>father<span class="Cnonalphakeyword">.</span>suffix_link<span class="Cnonalphakeyword">;</span>
+            ignore <span class="Cnonalphakeyword">(</span>trace_string gamma <span class="Cnonalphakeyword">~</span>skip:<span class="Ctrue">true</span><span class="Cnonalphakeyword">)</span>
+          <span class="Cend">end</span>
+        <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+          pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>suffix_link<span class="Cnonalphakeyword">;</span>
+          pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> label_length pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">-</span> 1
+        <span class="Cend">end</span>
+      <span class="Cend">end</span>
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* node creation (Rule 2) *)</span>
+    <span class="Clet">let</span> apply_extension_rule_2 ls le path_pos edge_pos <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">New_son</span> <span class="Cnonalphakeyword">-&gt;</span>
+          <span class="Cif">if</span> debug <span class="Cthen">then</span> printf <span class="Cstring">"rule 2: new leaf (%d,%d)@."</span> ls le<span class="Cnonalphakeyword">;</span>
+          <span class="Clet">let</span> leaf <span class="Cnonalphakeyword">=</span> 
+            create_node ls le <span class="Cnonalphakeyword">~</span>father:pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Leaf</span> path_pos<span class="Cnonalphakeyword">)</span> path_pos 
+          <span class="Cin">in</span>
+          <span class="Cbegin">begin</span> <span class="Cmatch">match</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+            <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>add b s0<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">[</span>ls<span class="Cnonalphakeyword">]</span> leaf<span class="Cnonalphakeyword">;</span> leaf
+            <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+          <span class="Cend">end</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Split</span> <span class="Cnonalphakeyword">-&gt;</span>
+          <span class="Cif">if</span> debug <span class="Cthen">then</span> printf <span class="Cstring">"rule 2: split (%d,%d)@."</span> ls le<span class="Cnonalphakeyword">;</span>
+          <span class="Clet">let</span> node <span class="Cnonalphakeyword">=</span> pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cin">in</span>
+          <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>create <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+          <span class="Clet">let</span> intl <span class="Cnonalphakeyword">=</span> 
+            create_node node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">(</span>node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">+</span> edge_pos<span class="Cnonalphakeyword">)</span> 
+              <span class="Cnonalphakeyword">~</span>father:node<span class="Cnonalphakeyword">.</span>father <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Branch</span> b<span class="Cnonalphakeyword">)</span> node<span class="Cnonalphakeyword">.</span>path_position
+          <span class="Cin">in</span>
+          node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">&lt;-</span> node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">+</span> edge_pos <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">;</span>
+          <span class="Clet">let</span> leaf <span class="Cnonalphakeyword">=</span> create_node <span class="Cnonalphakeyword">~</span>father:intl ls le <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Leaf</span> path_pos<span class="Cnonalphakeyword">)</span> path_pos <span class="Cin">in</span>
+          <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>add b s0<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">[</span>node<span class="Cnonalphakeyword">.</span>label_start<span class="Cnonalphakeyword">]</span> node<span class="Cnonalphakeyword">;</span>
+          <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>add b s0<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">[</span>ls<span class="Cnonalphakeyword">]</span> leaf<span class="Cnonalphakeyword">;</span>
+          node<span class="Cnonalphakeyword">.</span>father <span class="Cnonalphakeyword">&lt;-</span> intl<span class="Cnonalphakeyword">;</span>
+          <span class="Cbegin">begin</span> <span class="Cmatch">match</span> intl<span class="Cnonalphakeyword">.</span>father<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+            <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>add b s0<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">[</span>intl<span class="Cnonalphakeyword">.</span>label_start<span class="Cnonalphakeyword">]</span> intl<span class="Cnonalphakeyword">;</span> intl
+            <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+          <span class="Cend">end</span>
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* Single Extension Algorithm (SEA) *)</span>
+    <span class="Clet">let</span> sea j0 i_1 after_rule_3 <span class="Cnonalphakeyword">=</span>
+      <span class="Cif">if</span> debug <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        printf <span class="Cstring">"%a@."</span> print tree<span class="Cnonalphakeyword">;</span>
+        printf <span class="Cstring">"extension: %d  phase+1: %d"</span> j0 i_1<span class="Cnonalphakeyword">;</span>
+        <span class="Cif">if</span> after_rule_3 <span class="Cthen">then</span> 
+          printf <span class="Cstring">"   starting at (%d,%d | %d)\n"</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>label_start 
+            <span class="Cnonalphakeyword">(</span>label_end pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">)</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge
+        <span class="Celse">else</span>
+          printf <span class="Cstring">"   followed from (%d,%d | %d)\n"</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>label_start
+            <span class="Cnonalphakeyword">(</span>label_end pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">)</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge
+      <span class="Cend">end</span><span class="Cnonalphakeyword">;</span>
+      <span class="Clet">let</span> j <span class="Cnonalphakeyword">=</span> ref j0 <span class="Cin">in</span>
+      <span class="Cif">if</span> not after_rule_3 <span class="Cthen">then</span> follow_suffix_link <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+      <span class="Clet">let</span> chars_found <span class="Cnonalphakeyword">=</span> 
+        <span class="Cif">if</span> pos<span class="Cnonalphakeyword">.</span>pos_node == root <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          trace_string <span class="Cnonalphakeyword">(</span>!j<span class="Cnonalphakeyword">,</span>i_1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">~</span>skip:<span class="Cfalse">false</span> 
+        <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cbegin">begin</span>
+          j <span class="Cnonalphakeyword">:=</span> i_1<span class="Cnonalphakeyword">;</span>
+          <span class="Cif">if</span> last_char_in_edge <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+            <span class="Clet">let</span> tmp <span class="Cnonalphakeyword">=</span> find_son pos<span class="Cnonalphakeyword">.</span>pos_node s0<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">[</span>i_1<span class="Cnonalphakeyword">]</span> <span class="Cin">in</span>
+            <span class="Cif">if</span> tmp <span class="Cnonalphakeyword">!=</span> dummy_node <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+              pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> tmp<span class="Cnonalphakeyword">;</span>
+              pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> 0<span class="Cnonalphakeyword">;</span>
+              1
+            <span class="Cend">end</span> <span class="Celse">else</span>
+              0
+          <span class="Cend">end</span> <span class="Celse">else</span> 
+            <span class="Cif">if</span> 
+              s0<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">[</span>pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>label_start <span class="Cnonalphakeyword">+</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">]</span> ==
+                s0<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">[</span>i_1<span class="Cnonalphakeyword">]</span>
+            <span class="Cthen">then</span> <span class="Cbegin">begin</span>    
+              pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">&lt;-</span> pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">;</span>
+              1
+            <span class="Cend">end</span> <span class="Celse">else</span> 
+              0
+        <span class="Cend">end</span>
+      <span class="Cin">in</span>
+      <span class="Cif">if</span> debug <span class="Cthen">then</span> printf <span class="Cstring">"chars_found = %d@."</span> chars_found<span class="Cnonalphakeyword">;</span>
+      <span class="Cif">if</span> chars_found <span class="Cnonalphakeyword">=</span> i_1 <span class="Cnonalphakeyword">-</span> !j <span class="Cnonalphakeyword">+</span> 1 <span class="Cthen">then</span> <span class="Cbegin">begin</span> 
+        <span class="Ccomment">(* Rule 3 applies *)</span>
+        <span class="Cif">if</span> debug <span class="Cthen">then</span> printf <span class="Cstring">"rule 3 (%d,%d)@."</span> !j i_1<span class="Cnonalphakeyword">;</span>
+        set_suffix_link pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>father<span class="Cnonalphakeyword">;</span>
+        <span class="Cconstructor">Rule3</span>
+      <span class="Cend">end</span> <span class="Celse">else</span> <span class="Cif">if</span> last_char_in_edge <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> || pos<span class="Cnonalphakeyword">.</span>pos_node == root <span class="Cthen">then</span> 
+        <span class="Cmatch">match</span> pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+          <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span>
+              ignore 
+                <span class="Cnonalphakeyword">(</span>apply_extension_rule_2 <span class="Cnonalphakeyword">(</span>!j <span class="Cnonalphakeyword">+</span> chars_found<span class="Cnonalphakeyword">)</span> i_1 j0 0 <span class="Cconstructor">New_son</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+              set_suffix_link pos<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">;</span>
+              <span class="Cconstructor">Rule2</span>
+          <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span>
+              <span class="Cconstructor">Rule1</span>
+      <span class="Celse">else</span> <span class="Cbegin">begin</span>
+        <span class="Clet">let</span> tmp <span class="Cnonalphakeyword">=</span> 
+          apply_extension_rule_2 <span class="Cnonalphakeyword">(</span>!j<span class="Cnonalphakeyword">+</span>chars_found<span class="Cnonalphakeyword">)</span> i_1 j0 pos<span class="Cnonalphakeyword">.</span>pos_in_edge <span class="Cconstructor">Split</span>
+        <span class="Cin">in</span>
+        <span class="Cif">if</span> !suffix_less <span class="Cnonalphakeyword">!=</span> dummy_node <span class="Cthen">then</span> !suffix_less<span class="Cnonalphakeyword">.</span>suffix_link <span class="Cnonalphakeyword">&lt;-</span> tmp<span class="Cnonalphakeyword">;</span>
+        <span class="Cif">if</span> label_length tmp <span class="Cnonalphakeyword">=</span> 1 <span class="Cnonalphakeyword">&amp;&amp;</span> tmp<span class="Cnonalphakeyword">.</span>father == root <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          tmp<span class="Cnonalphakeyword">.</span>suffix_link <span class="Cnonalphakeyword">&lt;-</span> root<span class="Cnonalphakeyword">;</span>
+          suffix_less <span class="Cnonalphakeyword">:=</span> dummy_node
+        <span class="Cend">end</span> <span class="Celse">else</span>
+          suffix_less <span class="Cnonalphakeyword">:=</span> tmp<span class="Cnonalphakeyword">;</span>
+        pos<span class="Cnonalphakeyword">.</span>pos_node <span class="Cnonalphakeyword">&lt;-</span> tmp<span class="Cnonalphakeyword">;</span>
+        <span class="Cconstructor">Rule2</span>
+      <span class="Cend">end</span>
+    <span class="Cin">in</span>
+    <span class="Ccomment">(* Ukkonen main loop *)</span>
+    <span class="Clet">let</span> extension <span class="Cnonalphakeyword">=</span> ref 2 <span class="Cin">in</span>
+    <span class="Clet">let</span> last_rule_is_3 <span class="Cnonalphakeyword">=</span> ref <span class="Cfalse">false</span> <span class="Cin">in</span>
+    <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 2 <span class="Cto">to</span> m <span class="Cdo">do</span> <span class="Ccomment">(* phase [i+1] *)</span>
+      e <span class="Cnonalphakeyword">:=</span> i<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">;</span>
+      <span class="Clet">let</span> <span class="Crec">rec</span> spa <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> 
+        <span class="Cif">if</span> !extension &lt;= i<span class="Cnonalphakeyword">+</span>1 <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          <span class="Clet">let</span> rule <span class="Cnonalphakeyword">=</span> sea !extension <span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span> !last_rule_is_3 <span class="Cin">in</span>
+          last_rule_is_3 <span class="Cnonalphakeyword">:=</span> <span class="Cnonalphakeyword">(</span>rule <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Rule3</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+          <span class="Cif">if</span> not !last_rule_is_3 <span class="Cthen">then</span> <span class="Cbegin">begin</span> incr extension<span class="Cnonalphakeyword">;</span> spa <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cend">end</span>
+        <span class="Cend">end</span>
+      <span class="Cin">in</span>
+      spa <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span>
+    <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> set_leaf_end n <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> n<span class="Cnonalphakeyword">.</span>label_end <span class="Cnonalphakeyword">&lt;-</span> m<span class="Cnonalphakeyword">+</span>1
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>iter <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <span class="Cnonalphakeyword">_</span> n <span class="Cnonalphakeyword">-&gt;</span> set_leaf_end n<span class="Cnonalphakeyword">)</span> b
+    <span class="Cin">in</span>
+    set_leaf_end root<span class="Cnonalphakeyword">;</span>
+    tree
+
+  <span class="Clet">let</span> dummy_char <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Char</span><span class="Cnonalphakeyword">.</span>chr 0
+
+  <span class="Clet">let</span> find t s <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>length t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cin">in</span>
+    <span class="Clet">let</span> p <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>length s <span class="Cin">in</span>
+    <span class="Clet">let</span> get i <span class="Cnonalphakeyword">=</span> 
+      <span class="Cassert">assert</span> <span class="Cnonalphakeyword">(</span>1 &lt;= i <span class="Cnonalphakeyword">&amp;&amp;</span> i &lt;= m<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+      <span class="Cif">if</span> i &lt;= m <span class="Cthen">then</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>unsafe_get t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cnonalphakeyword">(</span>i-1<span class="Cnonalphakeyword">)</span> <span class="Celse">else</span> dummy_char
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> find_son n c <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> raise <span class="Cconstructor">Not_found</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>find b c
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> descend n j <span class="Cnonalphakeyword">=</span>
+      <span class="Clet">let</span> <span class="Crec">rec</span> descend_edge j k <span class="Cnonalphakeyword">=</span>
+        <span class="Cif">if</span> j <span class="Cnonalphakeyword">&lt;</span> p <span class="Cnonalphakeyword">&amp;&amp;</span> k &lt;= n<span class="Cnonalphakeyword">.</span>label_end <span class="Cnonalphakeyword">&amp;&amp;</span> <span class="Cnonalphakeyword">(</span>get k<span class="Cnonalphakeyword">)</span> == <span class="Cnonalphakeyword">(</span><span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>unsafe_get s j<span class="Cnonalphakeyword">)</span> <span class="Cthen">then</span>
+          descend_edge <span class="Cnonalphakeyword">(</span>succ j<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>succ k<span class="Cnonalphakeyword">)</span>
+        <span class="Celse">else</span> <span class="Cif">if</span> j <span class="Cnonalphakeyword">=</span> p <span class="Cthen">then</span>
+          <span class="Cnonalphakeyword">{</span> pos_node <span class="Cnonalphakeyword">=</span> n<span class="Cnonalphakeyword">;</span> pos_in_edge <span class="Cnonalphakeyword">=</span> k <span class="Cnonalphakeyword">}</span>
+        <span class="Celse">else</span> <span class="Cif">if</span> k <span class="Cnonalphakeyword">&gt;</span> n<span class="Cnonalphakeyword">.</span>label_end <span class="Cthen">then</span>
+          descend <span class="Cnonalphakeyword">(</span>find_son n <span class="Cnonalphakeyword">(</span><span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>unsafe_get s j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> j
+        <span class="Celse">else</span>
+          raise <span class="Cconstructor">Not_found</span>
+      <span class="Cin">in</span>
+      descend_edge j n<span class="Cnonalphakeyword">.</span>label_start
+    <span class="Cin">in</span>
+    <span class="Clet">let</span> n0 <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> t<span class="Cnonalphakeyword">.</span>tree_root<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> 
+          <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>find b <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> p <span class="Cnonalphakeyword">=</span> 0 <span class="Cthen">then</span> dummy_char <span class="Celse">else</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>unsafe_get s 0<span class="Cnonalphakeyword">)</span> 
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+    <span class="Cin">in</span>
+    descend n0 0
+
+  <span class="Clet">let</span> substring t s <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>length s <span class="Cnonalphakeyword">=</span> 0 <span class="Cthen">then</span> 
+      0 
+    <span class="Celse">else</span>
+      <span class="Clet">let</span> p <span class="Cnonalphakeyword">=</span> find t s <span class="Cin">in</span>
+      p<span class="Cnonalphakeyword">.</span>pos_node<span class="Cnonalphakeyword">.</span>path_position <span class="Cnonalphakeyword">-</span> 1
+
+  <span class="Clet">let</span> leaves f p <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> iter n <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> j <span class="Cnonalphakeyword">-&gt;</span> f <span class="Cnonalphakeyword">(</span>j <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">)</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>iter <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <span class="Cnonalphakeyword">_</span> n <span class="Cnonalphakeyword">-&gt;</span> iter n<span class="Cnonalphakeyword">)</span> b
+    <span class="Cin">in</span>
+    iter p<span class="Cnonalphakeyword">.</span>pos_node
+
+  <span class="Ccomment">(* ne fonctionne que si [B = Bmap] car il faut que [iter] soit lexic. *)</span>
+  <span class="Clet">let</span> suffix_array t <span class="Cnonalphakeyword">=</span> 
+    <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>length t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> iter n <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> n<span class="Cnonalphakeyword">.</span>node_type <span class="Cwith">with</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Leaf</span> j <span class="Cnonalphakeyword">-&gt;</span> printf <span class="Cstring">"%s\n"</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>sub t<span class="Cnonalphakeyword">.</span>tree_string <span class="Cnonalphakeyword">(</span>j-1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>m<span class="Cnonalphakeyword">-</span>j<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+      <span class="Cbar">|</span> <span class="Cconstructor">Branch</span> b <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">B</span><span class="Cnonalphakeyword">.</span>iter <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> <span class="Cnonalphakeyword">_</span> n <span class="Cnonalphakeyword">-&gt;</span> iter n<span class="Cnonalphakeyword">)</span> b
+    <span class="Cin">in</span>
+    iter t<span class="Cnonalphakeyword">.</span>tree_root
+    
+
+<span class="Cend">end</span>
+
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

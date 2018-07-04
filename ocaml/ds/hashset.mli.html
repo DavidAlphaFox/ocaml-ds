@@ -1,0 +1,193 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+hashset.mli</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="hashset.mli"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(* This module implements imperative sets as hash tables. </span>
+<span class="Ccomment">   Operations like union, intersection or difference are not provided, </span>
+<span class="Ccomment">   since there is no way to implement them easily (i.e. more easily than</span>
+<span class="Ccomment">   iterating over sets). *)</span>
+
+<span class="Ccomment">(*s Generic interface *)</span>
+
+<span class="Ctype">type</span> 'a t
+<span class="Ccomment">(* The type of sets. Elements have type ['a]. *)</span>
+
+<span class="Cval">val</span> create : int <span class="Cnonalphakeyword">-&gt;</span> 'a t
+<span class="Ccomment">(* [Hashset.create n] creates a new, empty set.</span>
+<span class="Ccomment">   For best results, [n] should be on the</span>
+<span class="Ccomment">   order of the expected number of elements that will be in</span>
+<span class="Ccomment">   the set.  The internal structure grows as needed, so [n] is just an</span>
+<span class="Ccomment">   initial guess. *)</span>
+
+<span class="Cval">val</span> clear : 'a t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(* Empty a set. *)</span>
+
+<span class="Cval">val</span> add : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(* [Hashset.add s x] adds [x] into the set [s]. *)</span>
+
+<span class="Cval">val</span> copy : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a t
+<span class="Ccomment">(* Return a copy of the given set. *)</span>
+
+<span class="Cval">val</span> mem : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> bool
+<span class="Ccomment">(* [Hashset.mem s x] checks if [x] belongs to [s]. *)</span>
+
+<span class="Cval">val</span> remove : 'a t <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(* [Hashset.remove s x] removes [x] from [s].</span>
+<span class="Ccomment">   It does nothing if [x] does not belong to [s]. *)</span>
+
+<span class="Cval">val</span> cardinal : 'a t <span class="Cnonalphakeyword">-&gt;</span> int
+<span class="Ccomment">(* [Hashset.cardinal s] returns the cardinal of [s]. *)</span>
+
+<span class="Cval">val</span> iter : <span class="Cnonalphakeyword">(</span>'a <span class="Cnonalphakeyword">-&gt;</span> unit<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(* [Hashset.iter f s] applies [f] to all elements in [s]. *)</span>
+
+<span class="Cval">val</span> fold : <span class="Cnonalphakeyword">(</span>'a <span class="Cnonalphakeyword">-&gt;</span> 'b <span class="Cnonalphakeyword">-&gt;</span> 'b<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> 'a t <span class="Cnonalphakeyword">-&gt;</span> 'b <span class="Cnonalphakeyword">-&gt;</span> 'b
+<span class="Ccomment">(* [Hashset.fold f s init] computes</span>
+<span class="Ccomment">   [(f eN ... (f e1 init)...)],</span>
+<span class="Ccomment">   where [e1 ... eN] are the elements in [s].</span>
+<span class="Ccomment">   The order in which the elements are passed to [f] is unspecified. *)</span>
+
+
+<span class="Ccomment">(*s Functorial interface *)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">HashedType</span> <span class="Cnonalphakeyword">=</span>
+  <span class="Csig">sig</span>
+    <span class="Ctype">type</span> t
+      <span class="Ccomment">(* The type of the elements. *)</span>
+    <span class="Cval">val</span> equal : t <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> bool
+      <span class="Ccomment">(* The equality predicate used to compare elements. *)</span>
+    <span class="Cval">val</span> hash : t <span class="Cnonalphakeyword">-&gt;</span> int
+      <span class="Ccomment">(* A hashing function on elements. It must be such that if two elements are</span>
+<span class="Ccomment">          equal according to [equal], then they have identical hash values</span>
+<span class="Ccomment">          as computed by [hash].</span>
+<span class="Ccomment">          Examples: suitable ([equal], [hash]) pairs for arbitrary element</span>
+<span class="Ccomment">          types include</span>
+<span class="Ccomment">          ([(=)], {!Hashset.hash}) for comparing objects by structure, and</span>
+<span class="Ccomment">          ([(==)], {!Hashset.hash}) for comparing objects by addresses</span>
+<span class="Ccomment">          (e.g. for mutable or cyclic keys). *)</span>
+   <span class="Cend">end</span>
+
+<span class="Ccomment">(* The input signature of the functor {!Hashset.Make}. *)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">S</span> <span class="Cnonalphakeyword">=</span>
+  <span class="Csig">sig</span>
+    <span class="Ctype">type</span> elt
+    <span class="Ctype">type</span> t
+    <span class="Cval">val</span> create : int <span class="Cnonalphakeyword">-&gt;</span> t
+    <span class="Cval">val</span> clear : t <span class="Cnonalphakeyword">-&gt;</span> unit
+    <span class="Cval">val</span> copy : t <span class="Cnonalphakeyword">-&gt;</span> t
+    <span class="Cval">val</span> add : t <span class="Cnonalphakeyword">-&gt;</span> elt <span class="Cnonalphakeyword">-&gt;</span> unit
+    <span class="Cval">val</span> remove : t <span class="Cnonalphakeyword">-&gt;</span> elt <span class="Cnonalphakeyword">-&gt;</span> unit
+    <span class="Cval">val</span> mem : t <span class="Cnonalphakeyword">-&gt;</span> elt <span class="Cnonalphakeyword">-&gt;</span> bool
+    <span class="Cval">val</span> cardinal : t <span class="Cnonalphakeyword">-&gt;</span> int
+    <span class="Cval">val</span> iter : <span class="Cnonalphakeyword">(</span>elt <span class="Cnonalphakeyword">-&gt;</span> unit<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> unit
+    <span class="Cval">val</span> fold : <span class="Cnonalphakeyword">(</span>elt <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> 'a<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> 'a <span class="Cnonalphakeyword">-&gt;</span> 'a
+  <span class="Cend">end</span>
+<span class="Ccomment">(* The output signature of the functor {!Hashset.Make}. *)</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Make</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">H</span> : <span class="Cconstructor">HashedType</span><span class="Cnonalphakeyword">)</span> : <span class="Cconstructor">S</span> <span class="Cwith">with</span> <span class="Ctype">type</span> elt <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">H</span><span class="Cnonalphakeyword">.</span>t
+<span class="Ccomment">(* Functor building an implementation of the hashtable structure.</span>
+<span class="Ccomment">    The functor [Hashset.Make] returns a structure containing</span>
+<span class="Ccomment">    a type [elt] of elements and a type [t] of hash sets.</span>
+<span class="Ccomment">    The operations perform similarly to those of the generic</span>
+<span class="Ccomment">    interface, but use the hashing and equality functions</span>
+<span class="Ccomment">    specified in the functor argument [H] instead of generic</span>
+<span class="Ccomment">    equality and hashing. *)</span>
+
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

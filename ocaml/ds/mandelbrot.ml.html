@@ -1,0 +1,104 @@
+<html><body>
+<pre>
+<font color="cc9900">open</font> <font color="0033cc">Graphics</font>
+
+<font color="green">let</font> max_iter = 60 <font color="990000">(* nombre maximum d'itérations *)</font>
+<font color="green">let</font> f_max_iter = float max_iter <font color="990000">(* optim *)</font>
+
+<font color="green">let</font> dedans = black
+
+<font color="990000">(* couleur = interpolation linéaire entre le rouge (loin) et le vert (près) *)</font>
+<font color="green">let</font> interpolation n =
+  <font color="green">let</font> f = float n /. f_max_iter <font color="green">in</font>
+  rgb (truncate ((1. -. f) *. 255.)) (truncate (f *. 255.)) 0
+
+<font color="green">let</font> couleur xc yc =
+  <font color="green">let</font> <font color="green">rec</font> iter i x y =
+    <font color="77aaaa">if</font> i = max_iter <font color="77aaaa">then</font>
+      dedans
+    <font color="77aaaa">else</font> 
+      <font color="green">let</font> x2 = x *. x <font color="green">in</font>
+      <font color="green">let</font> y2 = y *. y <font color="green">in</font>
+      <font color="77aaaa">if</font> x2 +. y2 > 4. <font color="77aaaa">then</font>
+	interpolation i
+      <font color="77aaaa">else</font>
+	iter (succ i) (x2 -. y2 +. xc) (2. *. x *. y +. yc)
+  <font color="green">in</font>
+  iter 0 xc yc
+
+<font color="green">let</font> dessine xmin xmax ymin ymax gx gy w h pas =
+  <font color="green">let</font> dx = float pas *. (xmax -. xmin) /. float w <font color="green">in</font>
+  <font color="green">let</font> dy = float pas *. (ymax -. ymin) /. float h <font color="green">in</font>
+  <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> w/pas - 1 <font color="77aaaa">do</font>
+    <font color="77aaaa">for</font> j = 0 <font color="77aaaa">to</font> h/pas - 1 <font color="77aaaa">do</font>
+      <font color="green">let</font> x = xmin +. float i *. dx <font color="green">in</font>
+      <font color="green">let</font> y = ymin +. float j *. dy <font color="green">in</font>
+      set_color (couleur x y);
+      <font color="77aaaa">if</font> pas = 1 <font color="77aaaa">then</font>
+	plot (gx + i) (gy + j)
+      <font color="77aaaa">else</font>
+	fill_rect (gx + i * pas) (gy + j * pas) pas pas
+    <font color="77aaaa">done</font>
+  <font color="77aaaa">done</font>
+
+<font color="green">let</font> larg = 900
+<font color="green">let</font> haut = 600
+<font color="green">let</font> () = open_graph (<font color="0033cc">Printf</font>.sprintf <font color="aa4444">" %dx%d"</font> larg haut)
+
+<font color="green">let</font> w_xmin = ref 0.0
+<font color="green">let</font> w_xmax = ref 0.0
+<font color="green">let</font> w_ymin = ref 0.0
+<font color="green">let</font> w_ymax = ref 0.0
+
+<font color="green">let</font> taches = <font color="0033cc">Queue</font>.create ()
+
+<font color="green">let</font> reset xmin xmax ymin ymax = 
+  clear_graph ();
+  <font color="0033cc">Queue</font>.clear taches;
+  <font color="0033cc">Queue</font>.add (xmin, xmax, ymin, ymax, 0, 0, larg, haut, 16) taches;
+  w_xmin := xmin;
+  w_xmax := xmax;
+  w_ymin := ymin;
+  w_ymax := ymax
+
+<font color="green">let</font> <font color="green">rec</font> scheduler () =
+  <font color="77aaaa">if</font> not (<font color="0033cc">Queue</font>.is_empty taches) <font color="77aaaa">then</font> <font color="990099">begin</font>
+    <font color="green">let</font> (xmin,xmax,ymin,ymax,gx,gy,w,h,pas) = <font color="0033cc">Queue</font>.pop taches <font color="green">in</font>
+    dessine xmin xmax ymin ymax gx gy w h pas;
+    <font color="77aaaa">if</font> pas > 1 <font color="77aaaa">then</font> <font color="990099">begin</font>
+      <font color="green">let</font> pas' = max 1 (pas / 2) <font color="green">in</font>
+      <font color="green">let</font> dx = (xmax -. xmin) /. 2. <font color="green">in</font>
+      <font color="green">let</font> dy = (ymax -. ymin) /. 2. <font color="green">in</font>
+      <font color="0033cc">Queue</font>.add 
+	(xmin, xmin +. dx, ymin, ymin +. dy, gx, gy, w/2, h/2, pas') taches;
+      <font color="0033cc">Queue</font>.add 
+	(xmin +. dx, xmax, ymin, ymin +. dy, gx + w/2, gy, w/2, h/2, pas') 
+	taches;
+      <font color="0033cc">Queue</font>.add 
+	(xmin, xmin +.dx, ymin +. dy, ymax, gx, gy + h/2, w/2, h/2, pas') 
+	taches;
+      <font color="0033cc">Queue</font>.add 
+	(xmin +. dx, xmax, ymin +. dy, ymax, 
+	 gx + w/2, gy + h/2, w/2, h/2, pas') 
+	taches;
+    <font color="990099">end</font>
+  <font color="990099">end</font>;
+  <font color="green">let</font> st = wait_next_event [<font color="0033cc">Poll</font>; <font color="0033cc">Key_pressed</font>; <font color="0033cc">Button_down</font>] <font color="green">in</font>
+  <font color="77aaaa">if</font> st.keypressed <font color="77aaaa">then</font> exit 0;
+  <font color="77aaaa">if</font> st.button <font color="77aaaa">then</font> <font color="990099">begin</font>
+    <font color="green">let</font> st = wait_next_event [<font color="0033cc">Button_up</font>] <font color="green">in</font>
+    <font color="green">let</font> dx = !w_xmax -. !w_xmin <font color="green">in</font>
+    <font color="green">let</font> xc = !w_xmin +. (float st.mouse_x /. float larg) *. dx <font color="green">in</font>
+    <font color="green">let</font> dy = !w_ymax -. !w_ymin <font color="green">in</font>
+    <font color="green">let</font> yc = !w_ymin +. (float st.mouse_y /. float haut) *. dy <font color="green">in</font>
+    reset (xc -. dx /. 4.) (xc +. dx /. 4.) (yc -. dy /. 4.) (yc +. dy /. 4.)
+  <font color="990099">end</font>;
+  scheduler ()
+
+<font color="green">let</font> () = 
+  reset (-2.0) 1.0 (-1.0) 1.0;
+  scheduler ();
+  ignore (read_key ())
+
+
+</pre></body></html>

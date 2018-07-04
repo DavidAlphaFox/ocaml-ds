@@ -1,0 +1,119 @@
+<html><body>
+<pre>
+<font color="990000">(*s Hans Boehm's Jaca CR library ported to ocaml.</font>
+<font color="990000">    See file cr.ml for license *)</font>
+
+<font color="cc9900">open</font> <font color="0033cc">Gmp</font>
+
+<font color="green">type</font> t
+
+<font color="green">exception</font> <font color="0033cc">PrecisionOverflow</font>
+
+<font color="990000">(* [approx x p] returns [x / 2^p] rounded to an integer;</font>
+<font color="990000">   the error in the result is strictly [< 1]. *)</font>
+<font color="green">val</font> approx : t -> int -> <font color="0033cc">Z</font>.t
+
+<font color="990000">(* if [msd x = n] then [2^(n-1) < abs(x) < 2^(n+1)] *)</font>
+<font color="green">val</font> msd : t -> int
+
+<font color="990000">(*s Basic operations *)</font>
+
+<font color="green">val</font> add : t -> t -> t
+<font color="green">val</font> neg : t -> t
+<font color="green">val</font> sub : t -> t -> t
+
+<font color="green">val</font> abs : t -> t
+
+<font color="green">val</font> mul : t -> t -> t
+<font color="green">val</font> inv : t -> t
+<font color="green">val</font> div : t -> t -> t
+
+<font color="green">val</font> pow_int : t -> int -> t
+<font color="green">val</font> root : int -> t -> t
+<font color="green">val</font> sqrt : t -> t
+
+<font color="green">val</font> ln : t -> t
+<font color="green">val</font> log : base:t -> t -> t
+
+<font color="green">val</font> exp : t -> t
+<font color="green">val</font> pow : t -> t -> t
+
+<font color="green">val</font> sin : t -> t
+<font color="green">val</font> cos : t -> t
+<font color="green">val</font> tan : t -> t
+
+<font color="green">val</font> arcsin : t -> t
+<font color="green">val</font> arccos : t -> t
+<font color="green">val</font> arctan : t -> t
+
+<font color="green">val</font> arctan_reciproqual : int -> t
+
+<font color="green">val</font> sinh : t -> t
+<font color="green">val</font> cosh : t -> t
+<font color="green">val</font> tanh : t -> t
+
+<font color="green">val</font> arcsinh : t -> t
+<font color="green">val</font> arccosh : t -> t
+<font color="green">val</font> arctanh : t -> t
+
+<font color="990000">(*s [select s x y] is [x] if [s < 0], and [y] otherwise.</font>
+<font color="990000">    (assumes [x = y] if [s = 0]) *)</font>
+<font color="green">val</font> select : t -> t -> t -> t
+
+<font color="green">val</font> compare : t -> t -> int
+
+<font color="green">val</font> min : t -> t -> t
+<font color="green">val</font> max : t -> t -> t
+
+<font color="990000">(*s Coercions *)</font>
+
+<font color="green">val</font> of_int : int -> t
+<font color="green">val</font> of_z : <font color="0033cc">Z</font>.t -> t
+<font color="green">val</font> of_int64 : <font color="0033cc">Int64</font>.t -> t
+<font color="green">val</font> of_float : float -> t
+
+<font color="990000">(* [to_q x n] and [to_float x n] return an approximation of [x] up to</font>
+<font color="990000">   [1/2^n]. [to_q x n] is exactly [(approx x (-n)) / 2^n] </font>
+<font color="990000">   and [to_float x n] returns the best floating point representation of</font>
+<font color="990000">   this rational. *)</font>
+
+<font color="green">val</font> to_q : t -> int -> <font color="0033cc">Q</font>.t
+<font color="green">val</font> to_float : t -> int -> float
+
+<font color="990000">(* String representation. [2 <= radix <= 16] and [radix] defaults to 10. *)</font>
+<font color="green">val</font> to_string : ?radix:int -> t -> int -> string
+<font color="green">val</font> of_string : ?radix:int -> string -> t
+
+<font color="990000">(*s Some constants *)</font>
+
+<font color="green">val</font> zero : t
+<font color="green">val</font> one : t
+<font color="green">val</font> two : t
+
+<font color="green">val</font> e : t
+<font color="green">val</font> ln2 : t
+
+<font color="green">val</font> pi : t
+<font color="green">val</font> half_pi : t
+
+<font color="990000">(*s Inverse of a monotone function.</font>
+<font color="990000">   Computes the inverse of a function, which must be defined and</font>
+<font color="990000">   strictly monotone on the interval [low, high]. The resulting function</font>
+<font color="990000">   is defined only on the image of [low, high]. The original function</font>
+<font color="990000">   may be either increasing or decreasing. *)</font>
+<font color="green">val</font> inverse_monotone : (t -> t) -> low:t -> high:t -> t -> t
+
+<font color="990000">(*s Format pretty-printer (uses radix 10). *)</font>
+
+<font color="green">val</font> print : <font color="0033cc">Format</font>.formatter -> t -> unit
+<font color="green">val</font> set_print_precision : int -> unit
+
+<font color="990000">(*s Infix notations *)</font>
+
+<font color="green">module</font> <font color="0033cc">Infixes</font> : <font color="990099">sig</font>
+  <font color="green">val</font> ( +! ) : t -> t -> t
+  <font color="green">val</font> ( -! ) : t -> t -> t
+  <font color="green">val</font> ( *! ) : t -> t -> t
+  <font color="green">val</font> ( /! ) : t -> t -> t
+<font color="990099">end</font>
+</pre></body></html>

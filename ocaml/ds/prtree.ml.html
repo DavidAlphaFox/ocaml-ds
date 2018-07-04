@@ -1,0 +1,144 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+prtree.ml</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="prtree.ml"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(*s Tree structures. *)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">Tree</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+  <span class="Ctype">type</span> t
+  <span class="Cval">val</span> decomp : t <span class="Cnonalphakeyword">-&gt;</span> string <span class="Cnonalphakeyword">*</span> t list
+<span class="Cend">end</span>
+
+<span class="Ccomment">(*s Pretty-print functor. *)</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Make</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">T</span> : <span class="Cconstructor">Tree</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cstruct">struct</span>
+
+  <span class="Copen">open</span> <span class="Cconstructor">Format</span>
+
+  <span class="Ccomment">(* [print_node] prints one node and [print_sons] its children.</span>
+<span class="Ccomment">     [pref] is the prefix to output at the beginning of line</span>
+<span class="Ccomment">     and [start] is the branching drawing (["+-"] the first time,</span>
+<span class="Ccomment">     and then ["|-"]). *)</span>
+
+  <span class="Clet">let</span> print fmt t <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> print_node pref t <span class="Cnonalphakeyword">=</span>
+      <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>s<span class="Cnonalphakeyword">,</span> sons<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">T</span><span class="Cnonalphakeyword">.</span>decomp t <span class="Cin">in</span>
+      pp_print_string fmt s<span class="Cnonalphakeyword">;</span>
+      <span class="Cif">if</span> sons &lt;&gt; <span class="Cnonalphakeyword">[</span><span class="Cnonalphakeyword">]</span> <span class="Cthen">then</span>
+        <span class="Clet">let</span> w <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>length s <span class="Cin">in</span>
+        <span class="Clet">let</span> pref' <span class="Cnonalphakeyword">=</span> pref ^ <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>make <span class="Cnonalphakeyword">(</span>w <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">)</span> <span class="Cstring">' '</span> <span class="Cin">in</span>
+        <span class="Cmatch">match</span> sons <span class="Cwith">with</span>
+          <span class="Cbar">|</span> <span class="Cnonalphakeyword">[</span>t'<span class="Cnonalphakeyword">]</span> <span class="Cnonalphakeyword">-&gt;</span> pp_print_string fmt <span class="Cstring">"---"</span><span class="Cnonalphakeyword">;</span> print_node <span class="Cnonalphakeyword">(</span>pref' ^ <span class="Cstring">"  "</span><span class="Cnonalphakeyword">)</span> t'
+          <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> pp_print_string fmt <span class="Cstring">"-"</span><span class="Cnonalphakeyword">;</span> print_sons pref' <span class="Cstring">"+-"</span> sons
+
+    <span class="Cand">and</span> print_sons pref start <span class="Cnonalphakeyword">=</span> <span class="Cfunction">function</span>
+      <span class="Cbar">|</span> <span class="Cnonalphakeyword">[</span><span class="Cnonalphakeyword">]</span> <span class="Cnonalphakeyword">-&gt;</span>
+          <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+      <span class="Cbar">|</span> <span class="Cnonalphakeyword">[</span>s<span class="Cnonalphakeyword">]</span> <span class="Cnonalphakeyword">-&gt;</span>
+          pp_print_string fmt <span class="Cstring">"`-"</span><span class="Cnonalphakeyword">;</span> print_node <span class="Cnonalphakeyword">(</span>pref ^ <span class="Cstring">"  "</span><span class="Cnonalphakeyword">)</span> s
+      <span class="Cbar">|</span> s <span class="Cnonalphakeyword">::</span> sons <span class="Cnonalphakeyword">-&gt;</span>
+          pp_print_string fmt start<span class="Cnonalphakeyword">;</span> print_node <span class="Cnonalphakeyword">(</span>pref ^ <span class="Cstring">"| "</span><span class="Cnonalphakeyword">)</span> s<span class="Cnonalphakeyword">;</span>
+          pp_force_newline fmt <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span> pp_print_string fmt pref<span class="Cnonalphakeyword">;</span>
+          print_sons pref <span class="Cstring">"|-"</span> sons
+
+    <span class="Cin">in</span>
+    print_node <span class="Cstring">""</span> t
+
+<span class="Cend">end</span>
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<html><body>
+<pre>
+<font color="cc9900">open</font> <font color="0033cc">Graphics</font>
+
+<font color="green">let</font> pas = 60
+<font color="green">let</font> rayon = pas/2 - 2
+
+<font color="green">let</font> () = 
+  open_graph <font color="aa4444">" 900x600"</font>;
+  set_window_title <font color="aa4444">"Caml Same"</font>;
+  set_color black;
+  fill_rect 0 0 900 600
+
+<font color="green">type</font> couleur = <font color="0033cc">Rouge</font> <font color="77aaaa">|</font> <font color="0033cc">Bleu</font> <font color="77aaaa">|</font> <font color="0033cc">Jaune</font> <font color="77aaaa">|</font> <font color="0033cc">Rien</font>
+
+<font color="green">let</font> couleur_aleatoire () = <font color="77aaaa">match</font> <font color="0033cc">Random</font>.int 3 <font color="77aaaa">with</font>
+  <font color="77aaaa">|</font> 0 -> <font color="0033cc">Rouge</font>
+  <font color="77aaaa">|</font> 1 -> <font color="0033cc">Bleu</font>
+  <font color="77aaaa">|</font> 2 -> <font color="0033cc">Jaune</font>
+  <font color="77aaaa">|</font> _ -> <font color="cc9900">assert</font> false
+
+<font color="green">let</font> grille =
+  <font color="0033cc">Array</font>.init 15 (<font color="green">fun</font> _ -> <font color="0033cc">Array</font>.init 10 (<font color="green">fun</font> _ -> couleur_aleatoire ()))
+
+<font color="green">let</font> couleur i j =
+  <font color="77aaaa">if</font> i >= 0 <font color="77aaaa">&&</font> i < 15 <font color="77aaaa">&&</font> j >= 0 <font color="77aaaa">&&</font> j < 10 <font color="77aaaa">then</font> grille.(i).(j) <font color="77aaaa">else</font> <font color="0033cc">Rien</font>
+
+<font color="green">let</font> dessine () =
+  <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> 14 <font color="77aaaa">do</font>
+    <font color="77aaaa">for</font> j = 0 <font color="77aaaa">to</font> 9 <font color="77aaaa">do</font>
+      set_color 
+	(<font color="77aaaa">match</font> grille.(i).(j) <font color="77aaaa">with</font> 
+	   <font color="77aaaa">|</font> <font color="0033cc">Rouge</font> -> red 
+	   <font color="77aaaa">|</font> <font color="0033cc">Bleu</font> -> blue 
+	   <font color="77aaaa">|</font> <font color="0033cc">Jaune</font> -> yellow 
+	   <font color="77aaaa">|</font> <font color="0033cc">Rien</font> -> black);
+      fill_circle (pas * i + pas/2) (pas * j + pas/2) rayon
+    <font color="77aaaa">done</font>
+  <font color="77aaaa">done</font>
+
+<font color="green">let</font> tasse_tableau garde t =
+  <font color="green">let</font> n = <font color="0033cc">Array</font>.length t <font color="green">in</font>
+  <font color="green">let</font> swap i j = <font color="green">let</font> tmp = t.(i) <font color="green">in</font> t.(i) <- t.(j); t.(j) <- tmp <font color="green">in</font>
+  <font color="green">let</font> d = ref 0 <font color="green">in</font> <font color="990000">(* première place disponible *)</font>
+  <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> n - 1 <font color="77aaaa">do</font>
+    <font color="77aaaa">if</font> garde t.(i) <font color="77aaaa">then</font> <font color="990099">begin</font> swap i !d; incr d <font color="990099">end</font>
+  <font color="77aaaa">done</font>
+
+<font color="green">let</font> tasse () =
+  <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> 14 <font color="77aaaa">do</font>
+    tasse_tableau (<font color="green">fun</font> c -> c <> <font color="0033cc">Rien</font>) grille.(i)
+  <font color="77aaaa">done</font>;
+  tasse_tableau (<font color="green">fun</font> c -> c.(0) <> <font color="0033cc">Rien</font>) grille
+
+<font color="green">let</font> score = ref 0
+
+<font color="green">let</font> supprime_region c i j =
+  <font color="green">let</font> s = ref 0 <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> enleve i j =
+    <font color="77aaaa">if</font> couleur i j = c <font color="77aaaa">then</font> <font color="990099">begin</font>
+      incr s;
+      grille.(i).(j) <- <font color="0033cc">Rien</font>;
+      enleve (i+1) j;
+      enleve (i-1) j;
+      enleve i (j+1);
+      enleve i (j-1)
+    <font color="990099">end</font>
+  <font color="green">in</font>
+  enleve i j;
+  score := !score + (!s - 2) * (!s - 2);
+  dessine ();
+  tasse ();
+  dessine ()
+
+<font color="green">let</font> click i j =
+  <font color="green">let</font> c = couleur i j <font color="green">in</font>
+  <font color="77aaaa">if</font> c <> <font color="0033cc">Rien</font> <font color="77aaaa">&&</font> (couleur (i-1) j = c <font color="77aaaa">||</font> couleur (i+1) j = c <font color="77aaaa">||</font>
+		   couleur i (j-1) = c <font color="77aaaa">||</font> couleur i (j+1) = c) 
+  <font color="77aaaa">then</font>
+    supprime_region c i j
+
+<font color="green">let</font> plus_de_region () =
+  <font color="77aaaa">try</font>
+    <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> 13 <font color="77aaaa">do</font>
+      <font color="77aaaa">for</font> j = 0 <font color="77aaaa">to</font> 8 <font color="77aaaa">do</font>
+	<font color="green">let</font> c = grille.(i).(j) <font color="green">in</font>
+	<font color="77aaaa">if</font> c <> <font color="0033cc">Rien</font> <font color="77aaaa">&&</font> (c = grille.(i+1).(j) <font color="77aaaa">||</font> c = grille.(i).(j+1)) <font color="77aaaa">then</font>
+	  <font color="red">raise</font> <font color="0033cc">Exit</font>
+      <font color="77aaaa">done</font>
+    <font color="77aaaa">done</font>;
+    true
+  <font color="77aaaa">with</font> <font color="0033cc">Exit</font> -> 
+    false
+
+<font color="green">let</font> fini () = 
+  <font color="77aaaa">if</font> grille.(0).(0) = <font color="0033cc">Rien</font> <font color="77aaaa">then</font> <font color="990099">begin</font> 
+    score := !score + 1000; true
+  <font color="990099">end</font> <font color="77aaaa">else</font>
+    plus_de_region ()
+
+<font color="green">let</font> () = 
+  dessine ();
+  <font color="77aaaa">while</font> true <font color="77aaaa">do</font>
+    <font color="green">let</font> st = wait_next_event [<font color="0033cc">Key_pressed</font>; <font color="0033cc">Button_down</font>] <font color="green">in</font>
+    <font color="77aaaa">if</font> st.keypressed <font color="77aaaa">then</font> exit 0;
+    <font color="77aaaa">if</font> st.button <font color="77aaaa">then</font> <font color="990099">begin</font>
+      <font color="green">let</font> st = wait_next_event [<font color="0033cc">Button_up</font>] <font color="green">in</font>
+      <font color="green">let</font> dx = st.mouse_x mod pas - pas/2 <font color="green">in</font>
+      <font color="green">let</font> dy = st.mouse_y mod pas - pas/2 <font color="green">in</font>
+      <font color="77aaaa">if</font> dx * dx + dy * dy <= rayon * rayon <font color="77aaaa">then</font> <font color="990099">begin</font>
+	<font color="green">let</font> i = st.mouse_x / pas <font color="green">in</font>
+	<font color="green">let</font> j = st.mouse_y / pas <font color="green">in</font>
+	click i j;
+	<font color="77aaaa">if</font> fini () <font color="77aaaa">then</font> <font color="990099">begin</font>
+	  <font color="0033cc">Printf</font>.printf <font color="aa4444">"score = %d\n"</font> !score; flush stdout;
+	  ignore (read_key ());
+	  exit 0
+	<font color="990099">end</font>
+      <font color="990099">end</font>
+    <font color="990099">end</font>
+  <font color="77aaaa">done</font>
+
+</pre></body></html>

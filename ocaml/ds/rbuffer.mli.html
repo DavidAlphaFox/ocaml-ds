@@ -1,0 +1,206 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+rbuffer.mli</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="rbuffer.mli"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(** Extensible string buffers.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    This is a ropes-based implementation of buffers, with exactly the same</span>
+<span class="Ccomment">    interface and semantics as module [Buffer] from ocaml's standard library,</span>
+<span class="Ccomment">    so that you can switch from one to the other transparently.</span>
+<span class="Ccomment"> </span>
+<span class="Ccomment">    There are a few differences, though:</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    - Contrary to ocaml's standard library, a buffer size is not limited to</span>
+<span class="Ccomment">      [Sys.max_string_length], but to [max_int] (sizes are represented </span>
+<span class="Ccomment">      internally using native ocaml integers).</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    - [contents] and [sub] raise [Invalid_argument] if the resulting string</span>
+<span class="Ccomment">      would be larger than [Sys.max_string_length] bytes.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    - The meaning of [create]'s argument is not exactly the same, though its </span>
+<span class="Ccomment">      value only affects performances, as for [Buffer]; see below.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">    - An additional function [print] is provided.</span>
+<span class="Ccomment"> </span>
+<span class="Ccomment">    Note: ocaml's [Buffer] is already quite efficient and this alternate</span>
+<span class="Ccomment">    implementation is to be considered only when the size limit of [Buffer]</span>
+<span class="Ccomment">    becomes an issue.</span>
+<span class="Ccomment">*)</span>
+
+<span class="Ctype">type</span> t
+<span class="Ccomment">(** The abstract type of buffers. *)</span>
+
+<span class="Cval">val</span> create : int <span class="Cnonalphakeyword">-&gt;</span> t
+<span class="Ccomment">(** [create n] returns a fresh buffer, initially empty.</span>
+<span class="Ccomment">   The [n] parameter will be the size of each chunk in the internal rope.</span>
+<span class="Ccomment">   For best performance, [n] should be within a few orders of magnitude</span>
+<span class="Ccomment">   as the number of characters that are expected to be stored in</span>
+<span class="Ccomment">   the buffer. Note that, contrary to module [Buffer], a too small value </span>
+<span class="Ccomment">   of [n] may result in bad performances.</span>
+<span class="Ccomment"></span>
+<span class="Ccomment">   If [n] is not between 1 and {!Sys.max_string_length}, it will</span>
+<span class="Ccomment">   be clipped to that interval. *)</span>
+
+<span class="Cval">val</span> contents : t <span class="Cnonalphakeyword">-&gt;</span> string
+<span class="Ccomment">(** Return a copy of the current contents of the buffer.</span>
+<span class="Ccomment">   The buffer itself is unchanged. *)</span>
+
+<span class="Cval">val</span> sub : t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> string
+<span class="Ccomment">(** [Buffer.sub b off len] returns (a copy of) the substring of the</span>
+<span class="Ccomment">current contents of the buffer [b] starting at offset [off] of length</span>
+<span class="Ccomment">[len] bytes. May raise [Invalid_argument] if out of bounds request. The</span>
+<span class="Ccomment">buffer itself is unaffected. *)</span>
+
+<span class="Cval">val</span> nth : t <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> char
+<span class="Ccomment">(** get the n-th character of the buffer. Raise [Invalid_argument] if</span>
+<span class="Ccomment">index out of bounds *)</span>
+
+<span class="Cval">val</span> length : t <span class="Cnonalphakeyword">-&gt;</span> int
+<span class="Ccomment">(** Return the number of characters currently contained in the buffer. *)</span>
+
+<span class="Cval">val</span> clear : t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** Empty the buffer. *)</span>
+
+<span class="Cval">val</span> reset : t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** Empty the buffer. *)</span>
+
+<span class="Cval">val</span> add_char : t <span class="Cnonalphakeyword">-&gt;</span> char <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [add_char b c] appends the character [c] at the end of the buffer [b]. *)</span>
+
+<span class="Cval">val</span> add_string : t <span class="Cnonalphakeyword">-&gt;</span> string <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [add_string b s] appends the string [s] at the end of the buffer [b]. *)</span>
+
+<span class="Cval">val</span> add_substring : t <span class="Cnonalphakeyword">-&gt;</span> string <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [add_substring b s ofs len] takes [len] characters from offset</span>
+<span class="Ccomment">   [ofs] in string [s] and appends them at the end of the buffer [b]. *)</span>
+
+<span class="Cval">val</span> add_substitute : t <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span>string <span class="Cnonalphakeyword">-&gt;</span> string<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> string <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [add_substitute b f s] appends the string pattern [s] at the end</span>
+<span class="Ccomment">   of the buffer [b] with substitution.</span>
+<span class="Ccomment">   The substitution process looks for variables into</span>
+<span class="Ccomment">   the pattern and substitutes each variable name by its value, as</span>
+<span class="Ccomment">   obtained by applying the mapping [f] to the variable name. Inside the</span>
+<span class="Ccomment">   string pattern, a variable name immediately follows a non-escaped</span>
+<span class="Ccomment">   [$] character and is one of the following:</span>
+<span class="Ccomment">   - a non empty sequence of alphanumeric or [_] characters,</span>
+<span class="Ccomment">   - an arbitrary sequence of characters enclosed by a pair of</span>
+<span class="Ccomment">   matching parentheses or curly brackets.</span>
+<span class="Ccomment">   An escaped [$] character is a [$] that immediately follows a backslash</span>
+<span class="Ccomment">   character; it then stands for a plain [$].</span>
+<span class="Ccomment">   Raise [Not_found] if the closing character of a parenthesized variable</span>
+<span class="Ccomment">   cannot be found. *)</span>
+
+<span class="Cval">val</span> add_buffer : t <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [add_buffer b1 b2] appends the current contents of buffer [b2]</span>
+<span class="Ccomment">   at the end of buffer [b1].  [b2] is not modified. *)</span>
+
+<span class="Cval">val</span> add_channel : t <span class="Cnonalphakeyword">-&gt;</span> in_channel <span class="Cnonalphakeyword">-&gt;</span> int <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [add_channel b ic n] reads exactly [n] character from the</span>
+<span class="Ccomment">   input channel [ic] and stores them at the end of buffer [b].</span>
+<span class="Ccomment">   Raise [End_of_file] if the channel contains fewer than [n]</span>
+<span class="Ccomment">   characters. *)</span>
+
+<span class="Cval">val</span> output_buffer : out_channel <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [output_buffer oc b] writes the current contents of buffer [b]</span>
+<span class="Ccomment">   on the output channel [oc]. *)</span>
+
+<span class="Cval">val</span> print : <span class="Cconstructor">Format</span><span class="Cnonalphakeyword">.</span>formatter <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Ccomment">(** [print fmt b] prints the current contents of buffer [b]</span>
+<span class="Ccomment">   on the formatter [fmt]. *)</span>
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

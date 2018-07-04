@@ -1,0 +1,186 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+search.mli</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="search.mli"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(*s Search algorithms, presented both functionally and imperatively. *)</span>
+
+<span class="Ccomment">(*s Functional search *)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">FunctionalProblem</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+
+  <span class="Ccomment">(* states *)</span>
+  <span class="Ctype">type</span> state
+  <span class="Cval">val</span> success : state <span class="Cnonalphakeyword">-&gt;</span> bool
+
+  <span class="Ccomment">(* moves *)</span>
+  <span class="Ctype">type</span> move
+  <span class="Cval">val</span> moves : state <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span>move <span class="Cnonalphakeyword">*</span> state<span class="Cnonalphakeyword">)</span> list
+
+  <span class="Ccomment">(* visited states are stored in a table using the following type</span>
+<span class="Ccomment">     and functions; when it is not necessary/desired to mark visited states,</span>
+<span class="Ccomment">     simply provide a function [mem] always returning false.</span>
+<span class="Ccomment">     Note: [clear] is used for iterative deepening search only. *)</span>
+  <span class="Ctype">type</span> table
+  <span class="Cval">val</span> create : unit <span class="Cnonalphakeyword">-&gt;</span> table
+  <span class="Cval">val</span> add : table <span class="Cnonalphakeyword">-&gt;</span> state <span class="Cnonalphakeyword">-&gt;</span> unit
+  <span class="Cval">val</span> mem : table <span class="Cnonalphakeyword">-&gt;</span> state <span class="Cnonalphakeyword">-&gt;</span> bool
+  <span class="Cval">val</span> clear : table <span class="Cnonalphakeyword">-&gt;</span> unit
+<span class="Cend">end</span>
+
+<span class="Ccomment">(* [search s] searches for a successful state starting from state [s];</span>
+<span class="Ccomment">   if there is such a state, it returns it, together with the path from [s];</span>
+<span class="Ccomment">   otherwise, it raises [Not_found]. *)</span>
+
+<span class="Ccomment">(* Depth-first search *)</span>
+<span class="Cmodule">module</span> <span class="Cconstructor">FunctionalDFS</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">P</span> : <span class="Cconstructor">FunctionalProblem</span><span class="Cnonalphakeyword">)</span> : <span class="Csig">sig</span>
+  <span class="Cval">val</span> search : <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>state <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>state <span class="Cnonalphakeyword">*</span> <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>move list
+<span class="Cend">end</span>
+
+<span class="Ccomment">(* Breadth-first search *)</span>
+<span class="Cmodule">module</span> <span class="Cconstructor">FunctionalBFS</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">P</span> : <span class="Cconstructor">FunctionalProblem</span><span class="Cnonalphakeyword">)</span> : <span class="Csig">sig</span>
+  <span class="Cval">val</span> search : <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>state <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>state <span class="Cnonalphakeyword">*</span> <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>move list
+<span class="Cend">end</span>
+
+<span class="Ccomment">(* Iterative deepening search *)</span>
+<span class="Cmodule">module</span> <span class="Cconstructor">FunctionalIDS</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">P</span> : <span class="Cconstructor">FunctionalProblem</span><span class="Cnonalphakeyword">)</span> : <span class="Csig">sig</span>
+  <span class="Cval">val</span> search : <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>state <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>state <span class="Cnonalphakeyword">*</span> <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>move list
+<span class="Cend">end</span>
+
+<span class="Ccomment">(*s Imperative search *)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">ImperativeProblem</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+
+  <span class="Ccomment">(* the state is global and imperative *)</span>
+  <span class="Cval">val</span> success : unit <span class="Cnonalphakeyword">-&gt;</span> bool
+
+  <span class="Ccomment">(* moves *)</span>
+  <span class="Ctype">type</span> move
+  <span class="Cval">val</span> moves : unit <span class="Cnonalphakeyword">-&gt;</span> move list
+  <span class="Cval">val</span> do_move : move <span class="Cnonalphakeyword">-&gt;</span> unit
+  <span class="Cval">val</span> undo_move : move <span class="Cnonalphakeyword">-&gt;</span> unit
+
+  <span class="Ccomment">(* visited states are stored using the following functions:</span>
+<span class="Ccomment">     [add] stores the current state in the table and [mem] checks whether</span>
+<span class="Ccomment">     the current state is already in the table *)</span>
+  <span class="Cval">val</span> add : unit <span class="Cnonalphakeyword">-&gt;</span> unit
+  <span class="Cval">val</span> mem : unit <span class="Cnonalphakeyword">-&gt;</span> bool
+  <span class="Cval">val</span> clear : unit <span class="Cnonalphakeyword">-&gt;</span> unit
+
+<span class="Cend">end</span>
+
+<span class="Ccomment">(* [search ()] searches for a successful state starting from the current state;</span>
+<span class="Ccomment">   if there is such a state, it returns the path from the initial state;</span>
+<span class="Ccomment">   otherwise, it raises [Not_found]. *)</span>
+
+<span class="Ccomment">(* Depth-first search *)</span>
+<span class="Cmodule">module</span> <span class="Cconstructor">ImperativeDFS</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">P</span> : <span class="Cconstructor">ImperativeProblem</span><span class="Cnonalphakeyword">)</span> : <span class="Csig">sig</span>
+  <span class="Cval">val</span> iter: <span class="Cnonalphakeyword">(</span><span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>move list <span class="Cnonalphakeyword">-&gt;</span> unit<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">-&gt;</span> unit
+  <span class="Cval">val</span> search : unit <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>move list
+<span class="Cend">end</span>
+
+<span class="Ccomment">(* Breadth-first search *)</span>
+<span class="Cmodule">module</span> <span class="Cconstructor">ImperativeBFS</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">P</span> : <span class="Cconstructor">ImperativeProblem</span><span class="Cnonalphakeyword">)</span> : <span class="Csig">sig</span>
+  <span class="Cval">val</span> search : unit <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>move list
+<span class="Cend">end</span>
+
+<span class="Ccomment">(* Iterative deepening search *)</span>
+<span class="Cmodule">module</span> <span class="Cconstructor">ImperativeIDS</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">P</span> : <span class="Cconstructor">ImperativeProblem</span><span class="Cnonalphakeyword">)</span> : <span class="Csig">sig</span>
+  <span class="Cval">val</span> search : unit <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">P</span><span class="Cnonalphakeyword">.</span>move list
+<span class="Cend">end</span>
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

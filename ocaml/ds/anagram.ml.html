@@ -1,0 +1,173 @@
+<html><body>
+<pre><font color="990000">(**************************************************************************)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  Copyright (C) Jean-Christophe Filliatre                               *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is free software; you can redistribute it and/or        *)</font>
+<font color="990000">(*  modify it under the terms of the GNU Library General Public           *)</font>
+<font color="990000">(*  License version 2, with the special exception on linking              *)</font>
+<font color="990000">(*  described in file LICENSE.                                            *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is distributed in the hope that it will be useful,      *)</font>
+<font color="990000">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</font>
+<font color="990000">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(**************************************************************************)</font>
+
+<font color="990000">(*s {\bf Anagrams.} The following program finds all the anagrams of a given</font>
+<font color="990000">    set of characters among a dictionary. Such a dictionary can be built by</font>
+<font color="990000">    the following program given a list of files containing words (one per</font>
+<font color="990000">    line). *)</font>
+
+<font color="990000">(*s The dictionary is implemented as a \emph{trie}. It is a multi-branching</font>
+<font color="990000">    tree, where branches are labelled with characters. Each node contains</font>
+<font color="990000">    a boolean which says if the word corresponding to the path from the root</font>
+<font color="990000">    belongs to the dictionary. The branches are implemented as maps from</font>
+<font color="990000">    characters to dictionaries. *)</font>
+
+<font color="green">module</font> <font color="0033cc">Cmap</font> = <font color="0033cc">Map</font>.<font color="0033cc">Make</font>(<font color="990099">struct</font> <font color="green">type</font> t = char <font color="green">let</font> compare = compare <font color="990099">end</font>)
+
+<font color="green">type</font> tree = <font color="0033cc">Node</font> <font color="green">of</font> bool * tree <font color="0033cc">Cmap</font>.t
+
+<font color="green">let</font> empty = <font color="0033cc">Node</font> (false, <font color="0033cc">Cmap</font>.empty)
+
+<font color="990000">(*s Insertion of a new word in the trie is just a matter of descending in</font>
+<font color="990000">    the tree, taking the branches corresponding to the successive characters.</font>
+<font color="990000">    Each time a branch does not exist, we continue the insertion in a new</font>
+<font color="990000">    empty tree. When the insertion is done in the subtree, we update the</font>
+<font color="990000">    branching to the new subtree. *)</font>
+
+<font color="green">let</font> add t w =
+  <font color="green">let</font> n = <font color="0033cc">String</font>.length w <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> addrec i (<font color="0033cc">Node</font> (b,m) <font color="green">as</font> t) =
+    <font color="77aaaa">if</font> i = n <font color="77aaaa">then</font>  
+      <font color="77aaaa">if</font> b <font color="77aaaa">then</font> t <font color="77aaaa">else</font> <font color="0033cc">Node</font> (true,m)
+    <font color="77aaaa">else</font>
+      <font color="green">let</font> c = w.[i] <font color="green">in</font>
+      <font color="green">let</font> br = <font color="77aaaa">try</font> <font color="0033cc">Cmap</font>.find c m <font color="77aaaa">with</font> <font color="0033cc">Not_found</font> -> empty <font color="green">in</font>
+      <font color="green">let</font> t' = addrec (succ i) br <font color="green">in</font>
+      <font color="0033cc">Node</font> (b, <font color="0033cc">Cmap</font>.add c t' m)
+  <font color="green">in</font>
+  addrec 0 t
+
+<font color="990000">(*s Even if it is not necessary, here is the function [mem] to tests</font>
+<font color="990000">    whether a word belongs or not to the dictionary. *)</font>
+
+<font color="green">let</font> mem t w =
+  <font color="green">let</font> n = <font color="0033cc">String</font>.length w <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> look i (<font color="0033cc">Node</font> (b,m)) =
+    <font color="77aaaa">if</font> i = n <font color="77aaaa">then</font>
+      b
+    <font color="77aaaa">else</font>
+      <font color="77aaaa">try</font> look (succ i) (<font color="0033cc">Cmap</font>.find w.[i] m) <font color="77aaaa">with</font> <font color="0033cc">Not_found</font> -> false
+  <font color="green">in</font>
+  look 0 t
+
+<font color="990000">(*s The algorithm for anagrans is the following. We start from the root</font>
+<font color="990000">    of the tree with all the initial characters. Then, for each</font>
+<font color="990000">    \emph{distinct} character [c], we descend in the corresponding branch,</font>
+<font color="990000">    and apply recursively the algorithm with \emph{one occurrence} of [c] being</font>
+<font color="990000">    removed. When the collection of characters is empty, we simply test</font>
+<font color="990000">    the boolean at the current node. Whenever a branch is missing, we stop</font>
+<font color="990000">    the exploration. </font>
+<font color="990000"></font>
+<font color="990000">    It appears that we need to deal with \emph{multi-sets} of characters.</font>
+<font color="990000">    Indeed, we have to keep the collection of characters which have not yet</font>
+<font color="990000">    been examined, and it may contain repetitions. *)</font>
+
+<font color="990000">(*s Multi-sets of characters are implemented as maps from characters to</font>
+<font color="990000">    positive integers. The operations of insertion and deletion are</font>
+<font color="990000">    easily implemented. We also provide a function [ms_of_string] to</font>
+<font color="990000">    build the multi-set corresponding to a given string. *)</font>
+
+<font color="green">let</font> ms_add c m =
+  <font color="77aaaa">try</font> <font color="green">let</font> n = <font color="0033cc">Cmap</font>.find c m <font color="green">in</font> <font color="0033cc">Cmap</font>.add c (succ n) m
+  <font color="77aaaa">with</font> <font color="0033cc">Not_found</font> -> <font color="0033cc">Cmap</font>.add c 1 m
+
+<font color="green">let</font> ms_remove c m =
+  <font color="green">let</font> n = <font color="0033cc">Cmap</font>.find c m <font color="green">in</font> 
+  <font color="77aaaa">if</font> n = 1 <font color="77aaaa">then</font> <font color="0033cc">Cmap</font>.remove c m <font color="77aaaa">else</font> <font color="0033cc">Cmap</font>.add c (pred n) m
+
+<font color="green">let</font> ms_of_string w =
+  <font color="green">let</font> n = <font color="0033cc">String</font>.length w <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> add i = <font color="77aaaa">if</font> i = n <font color="77aaaa">then</font> <font color="0033cc">Cmap</font>.empty <font color="77aaaa">else</font> ms_add w.[i] (add (succ i)) <font color="green">in</font>
+  add 0
+
+<font color="990000">(*s Then implementing the above algorithm is rather easy. During the </font>
+<font color="990000">    exploration, we keep three values: first, the current path [pref]</font>
+<font color="990000">    from the root of the initial tree, in reverse order; secondly, the </font>
+<font color="990000">    current node being examined, [(b,m)]; and finally, the current </font>
+<font color="990000">    multi-set of characters [s]. *)</font>
+
+<font color="green">let</font> subset = ref true
+
+<font color="green">let</font> <font color="green">rec</font> print_prefix = <font color="green">function</font>
+  <font color="77aaaa">|</font> [] -> ()
+  <font color="77aaaa">|</font> c::l -> print_prefix l; print_char c
+
+<font color="green">let</font> anagram d w =
+  <font color="green">let</font> <font color="green">rec</font> traverse pref (<font color="0033cc">Node</font> (b,m)) s = 
+    <font color="77aaaa">if</font> b <font color="77aaaa">&&</font> (s = <font color="0033cc">Cmap</font>.empty <font color="77aaaa">||</font> !subset) <font color="77aaaa">then</font> <font color="990099">begin</font> 
+      print_prefix pref; print_newline () 
+    <font color="990099">end</font>;
+    <font color="0033cc">Cmap</font>.iter
+      (<font color="green">fun</font> c _ -> 
+	 <font color="77aaaa">try</font> traverse (c::pref) (<font color="0033cc">Cmap</font>.find c m) (ms_remove c s) 
+	 <font color="77aaaa">with</font> <font color="0033cc">Not_found</font> -> ()) s
+  <font color="green">in</font>
+  traverse [] d (ms_of_string w)
+
+<font color="990000">(*s Building the dictionary. The function [add_one_file] read all the</font>
+<font color="990000">    words contained in file [file] and inserts them in the tree [t]. </font>
+<font color="990000">    Then function [build_dict] constructs the whole dictionary by</font>
+<font color="990000">    successively inserting the words for the given list of files. *)</font>
+
+<font color="green">let</font> add_one_file t file =
+  <font color="0033cc">Printf</font>.printf <font color="aa4444">"Reading %s\n"</font> file; flush stdout;
+  <font color="green">let</font> ch = open_in file <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> read t = 
+    <font color="77aaaa">try</font> <font color="green">let</font> w = input_line ch <font color="green">in</font> read (add t w) <font color="77aaaa">with</font> <font color="0033cc">End_of_file</font> -> t
+  <font color="green">in</font>
+  <font color="green">let</font> t' = read t <font color="green">in</font> close_in ch; t'
+
+<font color="green">let</font> build_dict = <font color="0033cc">List</font>.fold_left add_one_file empty
+
+<font color="990000">(*s The following function [print_all] prints all the words of a given </font>
+<font color="990000">    dictionary. Only used for checks (option \texttt{-a}). *)</font>
+
+<font color="green">let</font> print_all d =
+  <font color="green">let</font> <font color="green">rec</font> traverse pref (<font color="0033cc">Node</font> (b, m)) = 
+    <font color="77aaaa">if</font> b <font color="77aaaa">then</font> <font color="990099">begin</font> print_prefix pref; print_newline () <font color="990099">end</font>;
+    <font color="0033cc">Cmap</font>.iter (<font color="green">fun</font> c t -> traverse (c::pref) t) m
+  <font color="green">in</font>
+  traverse [] d
+
+<font color="990000">(*s The main program. It mainly provides two ways of invoking the program: </font>
+<font color="990000">    first, the option \texttt{-b} will build the dictionary from the given </font>
+<font color="990000">    files and put it in the file ["dict.out"]; </font>
+<font color="990000">    secondly, the program invoked with a word on the command line</font>
+<font color="990000">    will print all the anagrams for this word. </font>
+<font color="990000">    Option \texttt{-e} specifies exact anagrams (i.e., with all characters</font>
+<font color="990000">    used). *)</font>
+
+<font color="green">let</font> output_dict d =
+  <font color="green">let</font> ch = open_out <font color="aa4444">"dict.out"</font> <font color="green">in</font> output_value ch d; close_out ch
+
+<font color="green">let</font> input_dict () =
+  <font color="green">let</font> ch = open_in <font color="aa4444">"dict.out"</font> <font color="green">in</font> <font color="green">let</font> d = input_value ch <font color="green">in</font> close_in ch; d
+
+<font color="green">let</font> usage () =
+  prerr_endline <font color="aa4444">"usage:"</font>;
+  prerr_endline <font color="aa4444">"  anagram -b files"</font>;
+  prerr_endline <font color="aa4444">"  anagram [-e] word"</font>
+
+<font color="green">let</font> main () =
+  <font color="77aaaa">match</font> <font color="0033cc">List</font>.tl (<font color="0033cc">Array</font>.to_list <font color="0033cc">Sys</font>.argv) <font color="77aaaa">with</font>
+    <font color="77aaaa">|</font> [] <font color="77aaaa">|</font> <font color="aa4444">"-h"</font> :: _ -> usage ()
+    <font color="77aaaa">|</font> <font color="aa4444">"-a"</font> :: _ -> <font color="green">let</font> d = input_dict () <font color="green">in</font> print_all d 
+    <font color="77aaaa">|</font> <font color="aa4444">"-b"</font> :: files -> <font color="green">let</font> d = build_dict files <font color="green">in</font> output_dict d
+    <font color="77aaaa">|</font> <font color="aa4444">"-e"</font> :: w :: _ -> subset := false; <font color="green">let</font> d = input_dict () <font color="green">in</font> anagram d w
+    <font color="77aaaa">|</font> w :: _ -> <font color="green">let</font> d = input_dict () <font color="green">in</font> anagram d w
+
+<font color="green">let</font> _ = <font color="0033cc">Printexc</font>.catch main ()
+</pre></body></html>

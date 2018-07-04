@@ -1,0 +1,203 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+binary_heap.ml</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="binary_heap.ml"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2.1, with the special exception on linking            *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(*s Heaps *)</span>
+
+<span class="Cmodule">module</span> <span class="Ctype">type</span> <span class="Cconstructor">Ordered</span> <span class="Cnonalphakeyword">=</span> <span class="Csig">sig</span>
+  <span class="Ctype">type</span> t
+  <span class="Cval">val</span> compare : t <span class="Cnonalphakeyword">-&gt;</span> t <span class="Cnonalphakeyword">-&gt;</span> int
+<span class="Cend">end</span>
+
+<span class="Cexception">exception</span> <span class="Cconstructor">Empty</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">Make</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">X</span> : <span class="Cconstructor">Ordered</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cstruct">struct</span>
+
+  <span class="Ccomment">(* The heap is encoded in the array [data], where elements are stored</span>
+<span class="Ccomment">     from [0] to [size - 1]. From an element stored at [i], the left</span>
+<span class="Ccomment">     (resp. right) subtree, if any, is rooted at [2*i+1] (resp. [2*i+2]). *)</span>
+
+  <span class="Ctype">type</span> t <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> <span class="Cmutable">mutable</span> size : int<span class="Cnonalphakeyword">;</span> <span class="Cmutable">mutable</span> data : <span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>t array <span class="Cnonalphakeyword">}</span>
+
+  <span class="Ccomment">(* When [create n] is called, we cannot allocate the array, since there is</span>
+<span class="Ccomment">     no known value of type [X.t]; we'll wait for the first addition to</span>
+<span class="Ccomment">     do it, and we remember this situation with a negative size. *)</span>
+
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; t">create</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool">&lt;=</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a> <span class="Cthen">then</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string -&gt; unit">invalid_arg</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="string"><span class="Cstring">"create"</span></a><span class="Cnonalphakeyword">;</span>
+    <span class="Cnonalphakeyword">{</span> size <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int"><span class="Cnonalphakeyword">-</span></a><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a><span class="Cnonalphakeyword">;</span> data <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array"><span class="Cnonalphakeyword">[|</span><span class="Cnonalphakeyword">|]</span></a> <span class="Cnonalphakeyword">}</span>
+
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; bool">is_empty</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool">&lt;=</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a>
+
+  <span class="Ccomment">(* [resize] doubles the size of [data] *)</span>
+
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; unit">resize</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <span class="Cin">in</span>
+    <span class="Cassert">assert</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">&gt;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n'</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">2</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">*</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <span class="Cin">in</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>data <span class="Cin">in</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d'</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; X.t -&gt; X.t array"><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>create</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n'</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array -&gt; int -&gt; X.t array -&gt; int -&gt; int -&gt; unit"><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>blit</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d'</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a><span class="Cnonalphakeyword">;</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>data <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d'</a>
+
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; X.t -&gt; unit">add</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t">x</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Ccomment">(* first addition: we allocate the array *)</span>
+    <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">&lt;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a> <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+      <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>data <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; X.t -&gt; X.t array"><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>create</a> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int"><span class="Cnonalphakeyword">-</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size<span class="Cnonalphakeyword">)</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t">x</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a>
+    <span class="Cend">end</span><span class="Cnonalphakeyword">;</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <span class="Cin">in</span>
+    <span class="Ccomment">(* resizing if needed *)</span>
+    <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool">==</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array -&gt; int"><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>data <span class="Cthen">then</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; unit">resize</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">;</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>data <span class="Cin">in</span>
+    <span class="Ccomment">(* moving [x] up in the heap *)</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; unit">moveup</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <span class="Cnonalphakeyword">=</span>
+      <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">fi</a> <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">-</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">1</a><span class="Cnonalphakeyword">)</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int">/</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">2</a> <span class="Cin">in</span>
+      <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">&gt;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="bool -&gt; bool -&gt; bool"><span class="Cnonalphakeyword">&amp;&amp;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t -&gt; X.t -&gt; int"><span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>compare</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">fi</a><span class="Cnonalphakeyword">)</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t">x</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">&lt;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a> <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">fi</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; unit">moveup</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">fi</a>
+      <span class="Cend">end</span> <span class="Celse">else</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t">x</a>
+    <span class="Cin">in</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; unit">moveup</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a><span class="Cnonalphakeyword">;</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">+</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">1</a>
+
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; X.t">maximum</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool">&lt;=</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a> <span class="Cthen">then</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="exn -&gt; unit">raise</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="exn"><span class="Cconstructor">Empty</span></a><span class="Cnonalphakeyword">;</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>data<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a><span class="Cnonalphakeyword">)</span>
+
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; unit">remove</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool">&lt;=</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a> <span class="Cthen">then</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="exn -&gt; unit">raise</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="exn"><span class="Cconstructor">Empty</span></a><span class="Cnonalphakeyword">;</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">-</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">1</a> <span class="Cin">in</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a><span class="Cnonalphakeyword">;</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>data <span class="Cin">in</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t">x</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a><span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Ccomment">(* moving [x] down in the heap *)</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; unit">movedown</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <span class="Cnonalphakeyword">=</span>
+      <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">2</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">*</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">+</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">1</a> <span class="Cin">in</span>
+      <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">&lt;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <span class="Cthen">then</span>
+        <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j</a> <span class="Cnonalphakeyword">=</span>
+          <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j'</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">+</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">1</a> <span class="Cin">in</span>
+          <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j'</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">&lt;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="bool -&gt; bool -&gt; bool"><span class="Cnonalphakeyword">&amp;&amp;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t -&gt; X.t -&gt; int"><span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>compare</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j'</a><span class="Cnonalphakeyword">)</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j</a><span class="Cnonalphakeyword">)</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">&gt;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a> <span class="Cthen">then</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j'</a> <span class="Celse">else</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j</a>
+        <span class="Cin">in</span>
+        <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t -&gt; X.t -&gt; int"><span class="Cconstructor">X</span><span class="Cnonalphakeyword">.</span>compare</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j</a><span class="Cnonalphakeyword">)</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t">x</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool"><span class="Cnonalphakeyword">&gt;</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a> <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+          <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j</a><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+          <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; unit">movedown</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">j</a>
+        <span class="Cend">end</span> <span class="Celse">else</span>
+          <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t">x</a>
+      <span class="Celse">else</span>
+        <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t">x</a>
+    <span class="Cin">in</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; unit">movedown</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a>
+
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; X.t">pop_maximum</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <span class="Cnonalphakeyword">=</span> <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t">m</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; X.t">maximum</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <span class="Cin">in</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t -&gt; unit">remove</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">;</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t">m</a>
+
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="(X.t -&gt; 'a) -&gt; t -&gt; unit">iter</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t -&gt; 'a">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>data <span class="Cin">in</span>
+    <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a> <span class="Cto">to</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; int"><span class="Cnonalphakeyword">-</span></a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">1</a> <span class="Cdo">do</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t -&gt; 'a">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <span class="Cdone">done</span>
+
+  <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="(X.t -&gt; 'b -&gt; 'b) -&gt; t -&gt; 'b -&gt; 'b">fold</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t -&gt; 'b -&gt; 'b">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="'b">x0</a> <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>size <span class="Cin">in</span>
+    <span class="Clet">let</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a> <span class="Cnonalphakeyword">=</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="t">h</a><span class="Cnonalphakeyword">.</span>data <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Crec">rec</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="'b -&gt; int -&gt; 'b">foldrec</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="'b">x</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <span class="Cnonalphakeyword">=</span>
+      <span class="Cif">if</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int -&gt; bool">&gt;=</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">n</a> <span class="Cthen">then</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="'b">x</a> <span class="Celse">else</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="'b -&gt; int -&gt; 'b">foldrec</a> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t -&gt; 'b -&gt; 'b">f</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="X.t array">d</a><span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="'b">x</a><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span><a href="javascript:;" style="text-decoration:none" class="Cannot" title="int -&gt; int">succ</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">i</a><span class="Cnonalphakeyword">)</span>
+    <span class="Cin">in</span>
+    <a href="javascript:;" style="text-decoration:none" class="Cannot" title="'b -&gt; int -&gt; 'b">foldrec</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="'b">x0</a> <a href="javascript:;" style="text-decoration:none" class="Cannot" title="int">0</a>
+
+<span class="Cend">end</span>
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>

@@ -1,0 +1,18 @@
+
+  o added missing operations in Ptmap (with the help of Francois Berenger)
+  o fixed bug in Ptset/Hset (reported by Jan Midtgaard)
+  o fixed bug in Ptset.Big (reported by Hugo Ferreira)
+  o improved Heap.Functional
+  o improved Ptset.filter and Hset.filter (contributed by Alain Frisch)
+  o added function compare, equal and is_empty to Trie and Ptmap (ocaml 3.08)
+    (code for Trie contributed by Francisco Valverde)
+  o added Ptset.split and Ptset.intersect (code from Markus Mottl)
+  o added covariance annotation for Ptmap.t (as suggested by Markus Mottl)
+
+version 0.2, 14/5/2001
+======================
+  o fixed bug in Ptset.merge
+
+version 0.1, 1/6/2000
+=====================
+  o first release

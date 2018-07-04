@@ -1,0 +1,838 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+  <title>
+bitv.ml</title>
+  <meta name="GENERATOR" content="caml2html 1.4.3">
+<style type="text/css">
+code,pre { color:black;background-color:white }a.Cannot { color:black;text-decoration:none }.Cstring { color: #aa4444; }
+.Craise { color: red; }
+.Cconstructor { color: #0033cc; }
+.Ccomment { color: #990000; }
+.Cassert,
+.Cinclude,
+.Copen { color: #cc9900; }
+.Cbar,
+.Cdo,
+.Cdone,
+.Cdownto,
+.Celse,
+.Cfor,
+.Cif,
+.Clazy,
+.Cmatch,
+.Cnew,
+.Cor,
+.Cthen,
+.Cto,
+.Ctry,
+.Cwhen,
+.Cwhile,
+.Cwith { color: #77aaaa; }
+.Cbegin,
+.Cend,
+.Cobject,
+.Csig,
+.Cstruct { color: #990099; }
+.Clinenum { color: black; background-color: silver; }
+.Cbackground { background-color: white; }
+.Cannot:hover { background-color: #b4eeb4; }
+.Calphakeyword,
+.Casr,
+.Cland,
+.Clor,
+.Clsl,
+.Clsr,
+.Clxor,
+.Cmod { color: #808080; }
+.Cfalse,
+.Cnonalphakeyword,
+.Cquotation,
+.Ctrue { }
+.Cand,
+.Cas,
+.Cclass,
+.Cconstraint,
+.Cexception,
+.Cexternal,
+.Cfun,
+.Cfunction,
+.Cfunctor,
+.Cin,
+.Cinherit,
+.Cinitializer,
+.Clet,
+.Cmethod,
+.Cmodule,
+.Cmutable,
+.Cof,
+.Cprivate,
+.Crec,
+.Ctype,
+.Cval,
+.Cvirtual { color: green; }
+</style>
+</head>
+<body>
+
+<pre><a name="bitv.ml"></a><span class="Ccomment">(**************************************************************************)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  Copyright (C) Jean-Christophe Filliatre                               *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is free software; you can redistribute it and/or        *)</span>
+<span class="Ccomment">(*  modify it under the terms of the GNU Library General Public           *)</span>
+<span class="Ccomment">(*  License version 2, with the special exception on linking              *)</span>
+<span class="Ccomment">(*  described in file LICENSE.                                            *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(*  This software is distributed in the hope that it will be useful,      *)</span>
+<span class="Ccomment">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</span>
+<span class="Ccomment">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</span>
+<span class="Ccomment">(*                                                                        *)</span>
+<span class="Ccomment">(**************************************************************************)</span>
+
+<span class="Ccomment">(*i $Id: bitv.ml,v 1.26 2012/08/14 07:26:00 filliatr Exp $ i*)</span>
+
+<span class="Ccomment">(*s Bit vectors. The interface and part of the code are borrowed from the</span>
+<span class="Ccomment">    [Array] module of the ocaml standard library (but things are simplified</span>
+<span class="Ccomment">    here since we can always initialize a bit vector). This module also</span>
+<span class="Ccomment">    provides bitwise operations. *)</span>
+
+<span class="Ccomment">(*s We represent a bit vector by a vector of integers (field [bits]),</span>
+<span class="Ccomment">    and we keep the information of the size of the bit vector since it</span>
+<span class="Ccomment">    can not be found out with the size of the array (field [length]). *)</span>
+
+<span class="Ctype">type</span> t <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span>
+  length : int<span class="Cnonalphakeyword">;</span>
+  bits   : int array <span class="Cnonalphakeyword">}</span>
+
+<span class="Clet">let</span> length v <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length
+
+<span class="Ccomment">(*s Each element of the array is an integer containing [bpi] bits, where</span>
+<span class="Ccomment">    [bpi] is determined according to the machine word size. Since we do not</span>
+<span class="Ccomment">    use the sign bit, [bpi] is 30 on a 32-bits machine and 62 on a 64-bits</span>
+<span class="Ccomment">    machines. We maintain the following invariant:</span>
+<span class="Ccomment">    {\em The unused bits of the last integer are always</span>
+<span class="Ccomment">    zeros.} This is ensured by [create] and maintained in other functions</span>
+<span class="Ccomment">    using [normalize]. [bit_j], [bit_not_j], [low_mask] and [up_mask]</span>
+<span class="Ccomment">    are arrays used to extract and mask bits in a single integer. *)</span>
+
+<span class="Clet">let</span> bpi <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cnonalphakeyword">-</span> 2
+
+<span class="Clet">let</span> max_length <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>max_array_length <span class="Cnonalphakeyword">*</span> bpi
+
+<span class="Clet">let</span> bit_j <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>init bpi <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> j <span class="Cnonalphakeyword">-&gt;</span> 1 <span class="Clsl">lsl</span> j<span class="Cnonalphakeyword">)</span>
+<span class="Clet">let</span> bit_not_j <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>init bpi <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> j <span class="Cnonalphakeyword">-&gt;</span> max_int <span class="Cnonalphakeyword">-</span> bit_j<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> low_mask <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>make <span class="Cnonalphakeyword">(</span>succ bpi<span class="Cnonalphakeyword">)</span> 0
+<span class="Clet">let</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">=</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 1 <span class="Cto">to</span> bpi <span class="Cdo">do</span> low_mask<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> low_mask<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i-1<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span> bit_j<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>pred i<span class="Cnonalphakeyword">)</span> <span class="Cdone">done</span>
+
+<span class="Clet">let</span> keep_lowest_bits a j <span class="Cnonalphakeyword">=</span> a <span class="Cland">land</span> low_mask<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>j<span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> high_mask <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>init <span class="Cnonalphakeyword">(</span>succ bpi<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> j <span class="Cnonalphakeyword">-&gt;</span> low_mask<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>j<span class="Cnonalphakeyword">)</span> <span class="Clsl">lsl</span> <span class="Cnonalphakeyword">(</span>bpi<span class="Cnonalphakeyword">-</span>j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> keep_highest_bits a j <span class="Cnonalphakeyword">=</span> a <span class="Cland">land</span> high_mask<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>j<span class="Cnonalphakeyword">)</span>
+
+<span class="Ccomment">(*s Creating and normalizing a bit vector is easy: it is just a matter of</span>
+<span class="Ccomment">    taking care of the invariant. Copy is immediate. *)</span>
+
+<span class="Clet">let</span> create n b <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> n <span class="Cnonalphakeyword">&lt;</span> 0 || n <span class="Cnonalphakeyword">&gt;</span> max_length <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.create"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Clet">let</span> initv <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> b <span class="Cthen">then</span> max_int <span class="Celse">else</span> 0 <span class="Cin">in</span>
+  <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> n <span class="Cmod">mod</span> bpi <span class="Cin">in</span>
+  <span class="Cif">if</span> r <span class="Cnonalphakeyword">=</span> 0 <span class="Cthen">then</span>
+    <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> n<span class="Cnonalphakeyword">;</span> bits <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>make <span class="Cnonalphakeyword">(</span>n / bpi<span class="Cnonalphakeyword">)</span> initv <span class="Cnonalphakeyword">}</span>
+  <span class="Celse">else</span> <span class="Cbegin">begin</span>
+    <span class="Clet">let</span> s <span class="Cnonalphakeyword">=</span> n / bpi <span class="Cin">in</span>
+    <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>make <span class="Cnonalphakeyword">(</span>succ s<span class="Cnonalphakeyword">)</span> initv <span class="Cin">in</span>
+    b<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>s<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> b<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>s<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> low_mask<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>r<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+    <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> n<span class="Cnonalphakeyword">;</span> bits <span class="Cnonalphakeyword">=</span> b <span class="Cnonalphakeyword">}</span>
+  <span class="Cend">end</span>
+
+<span class="Clet">let</span> normalize v <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cmod">mod</span> bpi <span class="Cin">in</span>
+  <span class="Cif">if</span> r <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span>
+    <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>bits <span class="Cin">in</span>
+    <span class="Clet">let</span> s <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length b <span class="Cin">in</span>
+    b<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>s-1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> b<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>s-1<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> low_mask<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>r<span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> copy v <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length<span class="Cnonalphakeyword">;</span> bits <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>copy v<span class="Cnonalphakeyword">.</span>bits <span class="Cnonalphakeyword">}</span>
+
+<span class="Ccomment">(*s Access and assignment. The [n]th bit of a bit vector is the [j]th</span>
+<span class="Ccomment">    bit of the [i]th integer, where [i = n / bpi] and [j = n mod</span>
+<span class="Ccomment">    bpi]. Both [i] and [j] and computed by the function [pos].</span>
+<span class="Ccomment">    Accessing a bit is testing whether the result of the corresponding</span>
+<span class="Ccomment">    mask operation is non-zero, and assigning it is done with a</span>
+<span class="Ccomment">    bitwiwe operation: an {\em or} with [bit_j] to set it, and an {\em</span>
+<span class="Ccomment">    and} with [bit_not_j] to unset it. *)</span>
+
+<span class="Clet">let</span> pos n <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> i <span class="Cnonalphakeyword">=</span> n / bpi <span class="Cand">and</span> j <span class="Cnonalphakeyword">=</span> n <span class="Cmod">mod</span> bpi <span class="Cin">in</span>
+  <span class="Cif">if</span> j <span class="Cnonalphakeyword">&lt;</span> 0 <span class="Cthen">then</span> <span class="Cnonalphakeyword">(</span>i <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">,</span> j <span class="Cnonalphakeyword">+</span> bpi<span class="Cnonalphakeyword">)</span> <span class="Celse">else</span> <span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">,</span>j<span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> unsafe_get v n <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">,</span>j<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos n <span class="Cin">in</span>
+  <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v<span class="Cnonalphakeyword">.</span>bits i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get bit_j j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&gt;</span> 0
+
+<span class="Clet">let</span> unsafe_set v n b <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">,</span>j<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos n <span class="Cin">in</span>
+  <span class="Cif">if</span> b <span class="Cthen">then</span>
+    <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set v<span class="Cnonalphakeyword">.</span>bits i
+      <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v<span class="Cnonalphakeyword">.</span>bits i<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get bit_j j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Celse">else</span>
+    <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set v<span class="Cnonalphakeyword">.</span>bits i
+      <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v<span class="Cnonalphakeyword">.</span>bits i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get bit_not_j j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+
+<span class="Ccomment">(*s The corresponding safe operations test the validiy of the access. *)</span>
+
+<span class="Clet">let</span> get v n <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> n <span class="Cnonalphakeyword">&lt;</span> 0 || n &gt;= v<span class="Cnonalphakeyword">.</span>length <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.get"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">,</span>j<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos n <span class="Cin">in</span>
+  <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v<span class="Cnonalphakeyword">.</span>bits i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get bit_j j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&gt;</span> 0
+
+<span class="Clet">let</span> set v n b <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> n <span class="Cnonalphakeyword">&lt;</span> 0 || n &gt;= v<span class="Cnonalphakeyword">.</span>length <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.set"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">,</span>j<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos n <span class="Cin">in</span>
+  <span class="Cif">if</span> b <span class="Cthen">then</span>
+    <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set v<span class="Cnonalphakeyword">.</span>bits i
+      <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v<span class="Cnonalphakeyword">.</span>bits i<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get bit_j j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Celse">else</span>
+    <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set v<span class="Cnonalphakeyword">.</span>bits i
+      <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v<span class="Cnonalphakeyword">.</span>bits i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get bit_not_j j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+
+<span class="Ccomment">(*s [init] is implemented naively using [unsafe_set]. *)</span>
+
+<span class="Clet">let</span> init n f <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> v <span class="Cnonalphakeyword">=</span> create n <span class="Cfalse">false</span> <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> pred n <span class="Cdo">do</span>
+    unsafe_set v i <span class="Cnonalphakeyword">(</span>f i<span class="Cnonalphakeyword">)</span>
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  v
+
+<span class="Ccomment">(*s Handling bits by packets is the key for efficiency of functions</span>
+<span class="Ccomment">    [append], [concat], [sub] and [blit].</span>
+<span class="Ccomment">    We start by a very general function [blit_bits a i m v n] which blits</span>
+<span class="Ccomment">    the bits [i] to [i+m-1] of a native integer [a]</span>
+<span class="Ccomment">    onto the bit vector [v] at index [n]. It assumes that [i..i+m-1] and</span>
+<span class="Ccomment">    [n..n+m-1] are respectively valid subparts of [a] and [v].</span>
+<span class="Ccomment">    It is optimized when the bits fit the lowest boundary of an integer</span>
+<span class="Ccomment">    (case [j == 0]). *)</span>
+
+<span class="Clet">let</span> blit_bits a i m v n <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>i'<span class="Cnonalphakeyword">,</span>j<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos n <span class="Cin">in</span>
+  <span class="Cif">if</span> j == 0 <span class="Cthen">then</span>
+    <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set v i'
+      <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>keep_lowest_bits <span class="Cnonalphakeyword">(</span>a <span class="Clsr">lsr</span> i<span class="Cnonalphakeyword">)</span> m<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span>
+       <span class="Cnonalphakeyword">(</span>keep_highest_bits <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v i'<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>bpi <span class="Cnonalphakeyword">-</span> m<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Celse">else</span>
+    <span class="Clet">let</span> d <span class="Cnonalphakeyword">=</span> m <span class="Cnonalphakeyword">+</span> j <span class="Cnonalphakeyword">-</span> bpi <span class="Cin">in</span>
+    <span class="Cif">if</span> d <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+      <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set v i'
+        <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>keep_lowest_bits <span class="Cnonalphakeyword">(</span>a <span class="Clsr">lsr</span> i<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>bpi <span class="Cnonalphakeyword">-</span> j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Clsl">lsl</span> j<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span>
+         <span class="Cnonalphakeyword">(</span>keep_lowest_bits <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v i'<span class="Cnonalphakeyword">)</span> j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+      <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set v <span class="Cnonalphakeyword">(</span>succ i'<span class="Cnonalphakeyword">)</span>
+        <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>keep_lowest_bits <span class="Cnonalphakeyword">(</span>a <span class="Clsr">lsr</span> <span class="Cnonalphakeyword">(</span>i <span class="Cnonalphakeyword">+</span> bpi <span class="Cnonalphakeyword">-</span> j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> d<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span>
+         <span class="Cnonalphakeyword">(</span>keep_highest_bits <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v <span class="Cnonalphakeyword">(</span>succ i'<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>bpi <span class="Cnonalphakeyword">-</span> d<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+    <span class="Cend">end</span> <span class="Celse">else</span>
+      <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set v i'
+        <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>keep_lowest_bits <span class="Cnonalphakeyword">(</span>a <span class="Clsr">lsr</span> i<span class="Cnonalphakeyword">)</span> m<span class="Cnonalphakeyword">)</span> <span class="Clsl">lsl</span> j<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span>
+         <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v i'<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span>low_mask<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>j<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span> high_mask<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">-</span>d<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+
+<span class="Ccomment">(*s [blit_int] implements [blit_bits] in the particular case when</span>
+<span class="Ccomment">    [i=0] and [m=bpi] i.e. when we blit all the bits of [a]. *)</span>
+
+<span class="Clet">let</span> blit_int a v n <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">,</span>j<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos n <span class="Cin">in</span>
+  <span class="Cif">if</span> j == 0 <span class="Cthen">then</span>
+    <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set v i a
+  <span class="Celse">else</span> <span class="Cbegin">begin</span>
+    <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set v i
+      <span class="Cnonalphakeyword">(</span> <span class="Cnonalphakeyword">(</span>keep_lowest_bits <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v i<span class="Cnonalphakeyword">)</span> j<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span>
+       <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>keep_lowest_bits a <span class="Cnonalphakeyword">(</span>bpi <span class="Cnonalphakeyword">-</span> j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Clsl">lsl</span> j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+    <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set v <span class="Cnonalphakeyword">(</span>succ i<span class="Cnonalphakeyword">)</span>
+      <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>keep_highest_bits <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v <span class="Cnonalphakeyword">(</span>succ i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>bpi <span class="Cnonalphakeyword">-</span> j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span>
+       <span class="Cnonalphakeyword">(</span>a <span class="Clsr">lsr</span> <span class="Cnonalphakeyword">(</span>bpi <span class="Cnonalphakeyword">-</span> j<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Cend">end</span>
+
+<span class="Ccomment">(*s When blitting a subpart of a bit vector into another bit vector, there</span>
+<span class="Ccomment">    are two possible cases: (1) all the bits are contained in a single integer</span>
+<span class="Ccomment">    of the first bit vector, and a single call to [blit_bits] is the</span>
+<span class="Ccomment">    only thing to do, or (2) the source bits overlap on several integers of</span>
+<span class="Ccomment">    the source array, and then we do a loop of [blit_int], with two calls</span>
+<span class="Ccomment">    to [blit_bits] for the two bounds. *)</span>
+
+<span class="Clet">let</span> unsafe_blit v1 ofs1 v2 ofs2 len <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> len <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span>
+    <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>bi<span class="Cnonalphakeyword">,</span>bj<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos ofs1 <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>ei<span class="Cnonalphakeyword">,</span>ej<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos <span class="Cnonalphakeyword">(</span>ofs1 <span class="Cnonalphakeyword">+</span> len <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Cif">if</span> bi == ei <span class="Cthen">then</span>
+      blit_bits <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v1 bi<span class="Cnonalphakeyword">)</span> bj len v2 ofs2
+    <span class="Celse">else</span> <span class="Cbegin">begin</span>
+      blit_bits <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v1 bi<span class="Cnonalphakeyword">)</span> bj <span class="Cnonalphakeyword">(</span>bpi <span class="Cnonalphakeyword">-</span> bj<span class="Cnonalphakeyword">)</span> v2 ofs2<span class="Cnonalphakeyword">;</span>
+      <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span>ofs2 <span class="Cnonalphakeyword">+</span> bpi <span class="Cnonalphakeyword">-</span> bj<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> succ bi <span class="Cto">to</span> pred ei <span class="Cdo">do</span>
+        blit_int <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v1 i<span class="Cnonalphakeyword">)</span> v2 !n<span class="Cnonalphakeyword">;</span>
+        n <span class="Cnonalphakeyword">:=</span> !n <span class="Cnonalphakeyword">+</span> bpi
+      <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+      blit_bits <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get v1 ei<span class="Cnonalphakeyword">)</span> 0 <span class="Cnonalphakeyword">(</span>succ ej<span class="Cnonalphakeyword">)</span> v2 !n
+    <span class="Cend">end</span>
+
+<span class="Clet">let</span> blit v1 ofs1 v2 ofs2 len <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> len <span class="Cnonalphakeyword">&lt;</span> 0 || ofs1 <span class="Cnonalphakeyword">&lt;</span> 0 || ofs1 <span class="Cnonalphakeyword">+</span> len <span class="Cnonalphakeyword">&gt;</span> v1<span class="Cnonalphakeyword">.</span>length
+             || ofs2 <span class="Cnonalphakeyword">&lt;</span> 0 || ofs2 <span class="Cnonalphakeyword">+</span> len <span class="Cnonalphakeyword">&gt;</span> v2<span class="Cnonalphakeyword">.</span>length
+  <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.blit"</span><span class="Cnonalphakeyword">;</span>
+  unsafe_blit v1<span class="Cnonalphakeyword">.</span>bits ofs1 v2<span class="Cnonalphakeyword">.</span>bits ofs2 len
+
+<span class="Ccomment">(*s Extracting the subvector [ofs..ofs+len-1] of [v] is just creating a</span>
+<span class="Ccomment">    new vector of length [len] and blitting the subvector of [v] inside. *)</span>
+
+<span class="Clet">let</span> sub v ofs len <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> ofs <span class="Cnonalphakeyword">&lt;</span> 0 || len <span class="Cnonalphakeyword">&lt;</span> 0 || ofs <span class="Cnonalphakeyword">+</span> len <span class="Cnonalphakeyword">&gt;</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.sub"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> create len <span class="Cfalse">false</span> <span class="Cin">in</span>
+  unsafe_blit v<span class="Cnonalphakeyword">.</span>bits ofs r<span class="Cnonalphakeyword">.</span>bits 0 len<span class="Cnonalphakeyword">;</span>
+  r
+
+<span class="Ccomment">(*s The concatenation of two bit vectors [v1] and [v2] is obtained by</span>
+<span class="Ccomment">    creating a vector for the result and blitting inside the two vectors.</span>
+<span class="Ccomment">    [v1] is copied directly. *)</span>
+
+<span class="Clet">let</span> append v1 v2 <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> l1 <span class="Cnonalphakeyword">=</span> v1<span class="Cnonalphakeyword">.</span>length
+  <span class="Cand">and</span> l2 <span class="Cnonalphakeyword">=</span> v2<span class="Cnonalphakeyword">.</span>length <span class="Cin">in</span>
+  <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> create <span class="Cnonalphakeyword">(</span>l1 <span class="Cnonalphakeyword">+</span> l2<span class="Cnonalphakeyword">)</span> <span class="Cfalse">false</span> <span class="Cin">in</span>
+  <span class="Clet">let</span> b1 <span class="Cnonalphakeyword">=</span> v1<span class="Cnonalphakeyword">.</span>bits <span class="Cin">in</span>
+  <span class="Clet">let</span> b2 <span class="Cnonalphakeyword">=</span> v2<span class="Cnonalphakeyword">.</span>bits <span class="Cin">in</span>
+  <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> r<span class="Cnonalphakeyword">.</span>bits <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length b1 <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+    <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_set b i <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get b1 i<span class="Cnonalphakeyword">)</span>
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  unsafe_blit b2 0 b l1 l2<span class="Cnonalphakeyword">;</span>
+  r
+
+<span class="Ccomment">(*s The concatenation of a list of bit vectors is obtained by iterating</span>
+<span class="Ccomment">    [unsafe_blit]. *)</span>
+
+<span class="Clet">let</span> concat vl <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> size <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">List</span><span class="Cnonalphakeyword">.</span>fold_left <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> sz v <span class="Cnonalphakeyword">-&gt;</span> sz <span class="Cnonalphakeyword">+</span> v<span class="Cnonalphakeyword">.</span>length<span class="Cnonalphakeyword">)</span> 0 vl <span class="Cin">in</span>
+  <span class="Clet">let</span> res <span class="Cnonalphakeyword">=</span> create size <span class="Cfalse">false</span> <span class="Cin">in</span>
+  <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> res<span class="Cnonalphakeyword">.</span>bits <span class="Cin">in</span>
+  <span class="Clet">let</span> pos <span class="Cnonalphakeyword">=</span> ref 0 <span class="Cin">in</span>
+  <span class="Cconstructor">List</span><span class="Cnonalphakeyword">.</span>iter
+    <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> v <span class="Cnonalphakeyword">-&gt;</span>
+       <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cin">in</span>
+       unsafe_blit v<span class="Cnonalphakeyword">.</span>bits 0 b !pos n<span class="Cnonalphakeyword">;</span>
+       pos <span class="Cnonalphakeyword">:=</span> !pos <span class="Cnonalphakeyword">+</span> n<span class="Cnonalphakeyword">)</span>
+    vl<span class="Cnonalphakeyword">;</span>
+  res
+
+<span class="Ccomment">(*s Filling is a particular case of blitting with a source made of all</span>
+<span class="Ccomment">    ones || all zeros. Thus we instanciate [unsafe_blit], with 0 and</span>
+<span class="Ccomment">    [max_int]. *)</span>
+
+<span class="Clet">let</span> blit_zeros v ofs len <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> len <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span>
+    <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>bi<span class="Cnonalphakeyword">,</span>bj<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos ofs <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>ei<span class="Cnonalphakeyword">,</span>ej<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos <span class="Cnonalphakeyword">(</span>ofs <span class="Cnonalphakeyword">+</span> len <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Cif">if</span> bi == ei <span class="Cthen">then</span>
+      blit_bits 0 bj len v ofs
+    <span class="Celse">else</span> <span class="Cbegin">begin</span>
+      blit_bits 0 bj <span class="Cnonalphakeyword">(</span>bpi <span class="Cnonalphakeyword">-</span> bj<span class="Cnonalphakeyword">)</span> v ofs<span class="Cnonalphakeyword">;</span>
+      <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span>ofs <span class="Cnonalphakeyword">+</span> bpi <span class="Cnonalphakeyword">-</span> bj<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> succ bi <span class="Cto">to</span> pred ei <span class="Cdo">do</span>
+        blit_int 0 v !n<span class="Cnonalphakeyword">;</span>
+        n <span class="Cnonalphakeyword">:=</span> !n <span class="Cnonalphakeyword">+</span> bpi
+      <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+      blit_bits 0 0 <span class="Cnonalphakeyword">(</span>succ ej<span class="Cnonalphakeyword">)</span> v !n
+    <span class="Cend">end</span>
+
+<span class="Clet">let</span> blit_ones v ofs len <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> len <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span>
+    <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>bi<span class="Cnonalphakeyword">,</span>bj<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos ofs <span class="Cin">in</span>
+    <span class="Clet">let</span> <span class="Cnonalphakeyword">(</span>ei<span class="Cnonalphakeyword">,</span>ej<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> pos <span class="Cnonalphakeyword">(</span>ofs <span class="Cnonalphakeyword">+</span> len <span class="Cnonalphakeyword">-</span> 1<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Cif">if</span> bi == ei <span class="Cthen">then</span>
+      blit_bits max_int bj len v ofs
+    <span class="Celse">else</span> <span class="Cbegin">begin</span>
+      blit_bits max_int bj <span class="Cnonalphakeyword">(</span>bpi <span class="Cnonalphakeyword">-</span> bj<span class="Cnonalphakeyword">)</span> v ofs<span class="Cnonalphakeyword">;</span>
+      <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> ref <span class="Cnonalphakeyword">(</span>ofs <span class="Cnonalphakeyword">+</span> bpi <span class="Cnonalphakeyword">-</span> bj<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+      <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> succ bi <span class="Cto">to</span> pred ei <span class="Cdo">do</span>
+        blit_int max_int v !n<span class="Cnonalphakeyword">;</span>
+        n <span class="Cnonalphakeyword">:=</span> !n <span class="Cnonalphakeyword">+</span> bpi
+      <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+      blit_bits max_int 0 <span class="Cnonalphakeyword">(</span>succ ej<span class="Cnonalphakeyword">)</span> v !n
+    <span class="Cend">end</span>
+
+<span class="Clet">let</span> fill v ofs len b <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> ofs <span class="Cnonalphakeyword">&lt;</span> 0 || len <span class="Cnonalphakeyword">&lt;</span> 0 || ofs <span class="Cnonalphakeyword">+</span> len <span class="Cnonalphakeyword">&gt;</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.fill"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Cif">if</span> b <span class="Cthen">then</span> blit_ones v<span class="Cnonalphakeyword">.</span>bits ofs len <span class="Celse">else</span> blit_zeros v<span class="Cnonalphakeyword">.</span>bits ofs len
+
+<span class="Ccomment">(*s All the iterators are implemented as for traditional arrays, using</span>
+<span class="Ccomment">    [unsafe_get]. For [iter] and [map], we do not precompute [(f</span>
+<span class="Ccomment">    true)] and [(f false)] since [f] may have side-effects. *)</span>
+
+<span class="Clet">let</span> iter f v <span class="Cnonalphakeyword">=</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span> f <span class="Cnonalphakeyword">(</span>unsafe_get v i<span class="Cnonalphakeyword">)</span> <span class="Cdone">done</span>
+
+<span class="Clet">let</span> map f v <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> l <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cin">in</span>
+  <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> create l <span class="Cfalse">false</span> <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> l <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+    unsafe_set r i <span class="Cnonalphakeyword">(</span>f <span class="Cnonalphakeyword">(</span>unsafe_get v i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  r
+
+<span class="Clet">let</span> iteri f v <span class="Cnonalphakeyword">=</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span> f i <span class="Cnonalphakeyword">(</span>unsafe_get v i<span class="Cnonalphakeyword">)</span> <span class="Cdone">done</span>
+
+<span class="Clet">let</span> mapi f v <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> l <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cin">in</span>
+  <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> create l <span class="Cfalse">false</span> <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> l <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+    unsafe_set r i <span class="Cnonalphakeyword">(</span>f i <span class="Cnonalphakeyword">(</span>unsafe_get v i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  r
+
+<span class="Clet">let</span> fold_left f x v <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> ref x <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+    r <span class="Cnonalphakeyword">:=</span> f !r <span class="Cnonalphakeyword">(</span>unsafe_get v i<span class="Cnonalphakeyword">)</span>
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  !r
+
+<span class="Clet">let</span> fold_right f v x <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> ref x <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">-</span> 1 <span class="Cdownto">downto</span> 0 <span class="Cdo">do</span>
+    r <span class="Cnonalphakeyword">:=</span> f <span class="Cnonalphakeyword">(</span>unsafe_get v i<span class="Cnonalphakeyword">)</span> !r
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  !r
+
+<span class="Clet">let</span> foldi_left f x v <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> ref x <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+    r <span class="Cnonalphakeyword">:=</span> f !r i <span class="Cnonalphakeyword">(</span>unsafe_get v i<span class="Cnonalphakeyword">)</span>
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  !r
+
+<span class="Clet">let</span> foldi_right f v x <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> ref x <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">-</span> 1 <span class="Cdownto">downto</span> 0 <span class="Cdo">do</span>
+    r <span class="Cnonalphakeyword">:=</span> f i <span class="Cnonalphakeyword">(</span>unsafe_get v i<span class="Cnonalphakeyword">)</span> !r
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  !r
+
+<span class="Ccomment">(*s Population count *)</span>
+
+<span class="Clet">let</span> <span class="Crec">rec</span> naive_pop x <span class="Cnonalphakeyword">=</span>
+  <span class="Cassert">assert</span> <span class="Cnonalphakeyword">(</span>x <span class="Cnonalphakeyword">&lt;</span> 0x10000<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+  <span class="Cif">if</span> x <span class="Cnonalphakeyword">=</span> 0 <span class="Cthen">then</span> 0 <span class="Celse">else</span> 1 <span class="Cnonalphakeyword">+</span> naive_pop <span class="Cnonalphakeyword">(</span>x <span class="Cnonalphakeyword">-</span> <span class="Cnonalphakeyword">(</span>x <span class="Cland">land</span> <span class="Cnonalphakeyword">-</span>x<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> pop16 <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>init 0x10000 naive_pop
+<span class="Clet">let</span> pop16 n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get pop16 n
+
+<span class="Clet">let</span> popi x <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+  <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span> pop16 <span class="Cnonalphakeyword">(</span>x <span class="Cland">land</span> 0xffff<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">+</span> pop16 <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>x <span class="Clsr">lsr</span> 16<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 0xffff<span class="Cnonalphakeyword">)</span>
+  <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span> pop16 <span class="Cnonalphakeyword">(</span>x <span class="Cland">land</span> 0xffff<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">+</span> pop16 <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>x <span class="Clsr">lsr</span> 16<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 0xffff<span class="Cnonalphakeyword">)</span>
+        <span class="Cnonalphakeyword">+</span> pop16 <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>x <span class="Clsr">lsr</span> 32<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 0xffff<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">+</span> pop16 <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>x <span class="Clsr">lsr</span> 48<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 0xffff<span class="Cnonalphakeyword">)</span>
+  <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+
+<span class="Clet">let</span> pop v <span class="Cnonalphakeyword">=</span>
+  <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>fold_left <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> acc n <span class="Cnonalphakeyword">-&gt;</span> acc <span class="Cnonalphakeyword">+</span> popi n<span class="Cnonalphakeyword">)</span> 0 v<span class="Cnonalphakeyword">.</span>bits
+
+<span class="Clet">let</span> iteri_true_naive f v <span class="Cnonalphakeyword">=</span>
+  <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>iteri
+    <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> i n <span class="Cnonalphakeyword">-&gt;</span> <span class="Cif">if</span> n <span class="Cnonalphakeyword">!=</span> 0 <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+       <span class="Clet">let</span> i_bpi <span class="Cnonalphakeyword">=</span> i <span class="Cnonalphakeyword">*</span> bpi <span class="Cin">in</span>
+       <span class="Cfor">for</span> j <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> bpi <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+         <span class="Cif">if</span> n <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get bit_j j<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span> f <span class="Cnonalphakeyword">(</span>i_bpi <span class="Cnonalphakeyword">+</span> j<span class="Cnonalphakeyword">)</span>
+       <span class="Cdone">done</span>
+     <span class="Cend">end</span><span class="Cnonalphakeyword">)</span>
+    v<span class="Cnonalphakeyword">.</span>bits
+
+<span class="Ccomment">(*s Number of trailing zeros (on a 32-bit machine) *)</span>
+
+<span class="Clet">let</span> hash32 x <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>0x34ca8b09 <span class="Cnonalphakeyword">*</span> x<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 0x3fffffff<span class="Cnonalphakeyword">)</span> <span class="Clsr">lsr</span> 24
+<span class="Clet">let</span> ntz_arr32 <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>make 64 0
+<span class="Clet">let</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> 30 <span class="Cdo">do</span> ntz_arr32<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>hash32 <span class="Cnonalphakeyword">(</span>1 <span class="Clsl">lsl</span> i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> i <span class="Cdone">done</span>
+<span class="Clet">let</span> ntz32 x <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> x == 0 <span class="Cthen">then</span> 31 <span class="Celse">else</span> ntz_arr32<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>hash32 <span class="Cnonalphakeyword">(</span>x <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">-</span>x<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> iteri_true_ntz32 f v <span class="Cnonalphakeyword">=</span>
+  <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>iteri
+    <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> i n <span class="Cnonalphakeyword">-&gt;</span>
+       <span class="Clet">let</span> i_bpi <span class="Cnonalphakeyword">=</span> i <span class="Cnonalphakeyword">*</span> bpi <span class="Cin">in</span>
+       <span class="Clet">let</span> <span class="Crec">rec</span> visit x <span class="Cnonalphakeyword">=</span>
+         <span class="Cif">if</span> x <span class="Cnonalphakeyword">!=</span> 0 <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+           <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> x <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">-</span>x<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+           f <span class="Cnonalphakeyword">(</span>i_bpi <span class="Cnonalphakeyword">+</span> ntz32 b<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+           visit <span class="Cnonalphakeyword">(</span>x <span class="Cnonalphakeyword">-</span> b<span class="Cnonalphakeyword">)</span>
+         <span class="Cend">end</span>
+       <span class="Cin">in</span>
+       visit n<span class="Cnonalphakeyword">)</span>
+    v<span class="Cnonalphakeyword">.</span>bits
+
+<span class="Clet">let</span> martin_constant <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span>0x03f79d71b <span class="Clsl">lsl</span> 28<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span> 0x4ca8b09 <span class="Ccomment">(*0x03f79d71b4ca8b09*)</span>
+<span class="Clet">let</span> hash64 x <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span>martin_constant <span class="Cnonalphakeyword">*</span> x<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> max_int<span class="Cnonalphakeyword">)</span> <span class="Clsr">lsr</span> 56
+<span class="Clet">let</span> ntz_arr64 <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>make 64 0
+<span class="Clet">let</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> 62 <span class="Cdo">do</span> ntz_arr64<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>hash64 <span class="Cnonalphakeyword">(</span>1 <span class="Clsl">lsl</span> i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> i <span class="Cdone">done</span>
+<span class="Clet">let</span> ntz64 x <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> x == 0 <span class="Cthen">then</span> 63 <span class="Celse">else</span> ntz_arr64<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>hash64 <span class="Cnonalphakeyword">(</span>x <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">-</span>x<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> iteri_true_ntz64 f v <span class="Cnonalphakeyword">=</span>
+  <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>iteri
+    <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> i n <span class="Cnonalphakeyword">-&gt;</span>
+       <span class="Clet">let</span> i_bpi <span class="Cnonalphakeyword">=</span> i <span class="Cnonalphakeyword">*</span> bpi <span class="Cin">in</span>
+       <span class="Clet">let</span> <span class="Crec">rec</span> visit x <span class="Cnonalphakeyword">=</span>
+         <span class="Cif">if</span> x <span class="Cnonalphakeyword">!=</span> 0 <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+           <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> x <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">-</span>x<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+           f <span class="Cnonalphakeyword">(</span>i_bpi <span class="Cnonalphakeyword">+</span> ntz64 b<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+           visit <span class="Cnonalphakeyword">(</span>x <span class="Cnonalphakeyword">-</span> b<span class="Cnonalphakeyword">)</span>
+         <span class="Cend">end</span>
+       <span class="Cin">in</span>
+       visit n<span class="Cnonalphakeyword">)</span>
+    v<span class="Cnonalphakeyword">.</span>bits
+
+<span class="Clet">let</span> iteri_true <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+  <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span> iteri_true_ntz32
+  <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span> iteri_true_ntz64
+  <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+
+<span class="Ccomment">(*s Bitwise operations. It is straigthforward, since bitwise operations</span>
+<span class="Ccomment">    can be realized by the corresponding bitwise operations over integers.</span>
+<span class="Ccomment">    However, one has to take care of normalizing the result of [bwnot]</span>
+<span class="Ccomment">    which introduces ones in highest significant positions. *)</span>
+
+<span class="Clet">let</span> bw_and v1 v2 <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> l <span class="Cnonalphakeyword">=</span> v1<span class="Cnonalphakeyword">.</span>length <span class="Cin">in</span>
+  <span class="Cif">if</span> l &lt;&gt; v2<span class="Cnonalphakeyword">.</span>length <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.bw_and"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Clet">let</span> b1 <span class="Cnonalphakeyword">=</span> v1<span class="Cnonalphakeyword">.</span>bits
+  <span class="Cand">and</span> b2 <span class="Cnonalphakeyword">=</span> v2<span class="Cnonalphakeyword">.</span>bits <span class="Cin">in</span>
+  <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length b1 <span class="Cin">in</span>
+  <span class="Clet">let</span> a <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>make n 0 <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> n <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+    a<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> b1<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> b2<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span>
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> l<span class="Cnonalphakeyword">;</span> bits <span class="Cnonalphakeyword">=</span> a <span class="Cnonalphakeyword">}</span>
+
+<span class="Clet">let</span> bw_or v1 v2 <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> l <span class="Cnonalphakeyword">=</span> v1<span class="Cnonalphakeyword">.</span>length <span class="Cin">in</span>
+  <span class="Cif">if</span> l &lt;&gt; v2<span class="Cnonalphakeyword">.</span>length <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.bw_or"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Clet">let</span> b1 <span class="Cnonalphakeyword">=</span> v1<span class="Cnonalphakeyword">.</span>bits
+  <span class="Cand">and</span> b2 <span class="Cnonalphakeyword">=</span> v2<span class="Cnonalphakeyword">.</span>bits <span class="Cin">in</span>
+  <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length b1 <span class="Cin">in</span>
+  <span class="Clet">let</span> a <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>make n 0 <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> n <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+    a<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> b1<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span> b2<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span>
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> l<span class="Cnonalphakeyword">;</span> bits <span class="Cnonalphakeyword">=</span> a <span class="Cnonalphakeyword">}</span>
+
+<span class="Clet">let</span> bw_xor v1 v2 <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> l <span class="Cnonalphakeyword">=</span> v1<span class="Cnonalphakeyword">.</span>length <span class="Cin">in</span>
+  <span class="Cif">if</span> l &lt;&gt; v2<span class="Cnonalphakeyword">.</span>length <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.bw_xor"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Clet">let</span> b1 <span class="Cnonalphakeyword">=</span> v1<span class="Cnonalphakeyword">.</span>bits
+  <span class="Cand">and</span> b2 <span class="Cnonalphakeyword">=</span> v2<span class="Cnonalphakeyword">.</span>bits <span class="Cin">in</span>
+  <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length b1 <span class="Cin">in</span>
+  <span class="Clet">let</span> a <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>make n 0 <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> n <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+    a<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> b1<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span> <span class="Clxor">lxor</span> b2<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span>
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> l<span class="Cnonalphakeyword">;</span> bits <span class="Cnonalphakeyword">=</span> a <span class="Cnonalphakeyword">}</span>
+
+<span class="Clet">let</span> bw_not v <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>bits <span class="Cin">in</span>
+  <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length b <span class="Cin">in</span>
+  <span class="Clet">let</span> a <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>make n 0 <span class="Cin">in</span>
+  <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> n <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+    a<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&lt;-</span> max_int <span class="Cland">land</span> <span class="Cnonalphakeyword">(</span>lnot b<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+  <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length<span class="Cnonalphakeyword">;</span> bits <span class="Cnonalphakeyword">=</span> a <span class="Cnonalphakeyword">}</span> <span class="Cin">in</span>
+  normalize r<span class="Cnonalphakeyword">;</span>
+  r
+
+<span class="Ccomment">(*s Shift operations. It is easy to reuse [unsafe_blit], although it is</span>
+<span class="Ccomment">    probably slightly less efficient than a ad-hoc piece of code. *)</span>
+
+<span class="Clet">let</span> <span class="Crec">rec</span> shiftl v d <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> d == 0 <span class="Cthen">then</span>
+    copy v
+  <span class="Celse">else</span> <span class="Cif">if</span> d <span class="Cnonalphakeyword">&lt;</span> 0 <span class="Cthen">then</span>
+    shiftr v <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">-</span>d<span class="Cnonalphakeyword">)</span>
+  <span class="Celse">else</span> <span class="Cbegin">begin</span>
+    <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cin">in</span>
+    <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> create n <span class="Cfalse">false</span> <span class="Cin">in</span>
+    <span class="Cif">if</span> d <span class="Cnonalphakeyword">&lt;</span> n <span class="Cthen">then</span> unsafe_blit v<span class="Cnonalphakeyword">.</span>bits 0 r<span class="Cnonalphakeyword">.</span>bits d <span class="Cnonalphakeyword">(</span>n <span class="Cnonalphakeyword">-</span> d<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+    r
+  <span class="Cend">end</span>
+
+<span class="Cand">and</span> shiftr v d <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> d == 0 <span class="Cthen">then</span>
+    copy v
+  <span class="Celse">else</span> <span class="Cif">if</span> d <span class="Cnonalphakeyword">&lt;</span> 0 <span class="Cthen">then</span>
+    shiftl v <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">-</span>d<span class="Cnonalphakeyword">)</span>
+  <span class="Celse">else</span> <span class="Cbegin">begin</span>
+    <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cin">in</span>
+    <span class="Clet">let</span> r <span class="Cnonalphakeyword">=</span> create n <span class="Cfalse">false</span> <span class="Cin">in</span>
+    <span class="Cif">if</span> d <span class="Cnonalphakeyword">&lt;</span> n <span class="Cthen">then</span> unsafe_blit v<span class="Cnonalphakeyword">.</span>bits d r<span class="Cnonalphakeyword">.</span>bits 0 <span class="Cnonalphakeyword">(</span>n <span class="Cnonalphakeyword">-</span> d<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+    r
+  <span class="Cend">end</span>
+
+<span class="Ccomment">(*s Testing for all zeros and all ones. *)</span>
+
+<span class="Clet">let</span> all_zeros v <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>bits <span class="Cin">in</span>
+  <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length b <span class="Cin">in</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> test i <span class="Cnonalphakeyword">=</span>
+    <span class="Cnonalphakeyword">(</span>i == n<span class="Cnonalphakeyword">)</span> || <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get b i == 0<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&amp;&amp;</span> test <span class="Cnonalphakeyword">(</span>succ i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Cin">in</span>
+  test 0
+
+<span class="Clet">let</span> all_ones v <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>bits <span class="Cin">in</span>
+  <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>length b <span class="Cin">in</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> test i <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> i == n <span class="Cnonalphakeyword">-</span> 1 <span class="Cthen">then</span>
+      <span class="Clet">let</span> m <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cmod">mod</span> bpi <span class="Cin">in</span>
+      <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get b i<span class="Cnonalphakeyword">)</span> == <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> m == 0 <span class="Cthen">then</span> max_int <span class="Celse">else</span> low_mask<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>m<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+    <span class="Celse">else</span>
+      <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">Array</span><span class="Cnonalphakeyword">.</span>unsafe_get b i<span class="Cnonalphakeyword">)</span> == max_int<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">&amp;&amp;</span> test <span class="Cnonalphakeyword">(</span>succ i<span class="Cnonalphakeyword">)</span>
+  <span class="Cin">in</span>
+  test 0
+
+<span class="Ccomment">(*s Conversions to and from strings. *)</span>
+
+<span class="Cmodule">module</span> <span class="Cconstructor">S</span><span class="Cnonalphakeyword">(</span><span class="Cconstructor">I</span> : <span class="Csig">sig</span> <span class="Cval">val</span> least_first : bool <span class="Cend">end</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span> <span class="Cstruct">struct</span>
+
+  <span class="Clet">let</span> to_string v <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cin">in</span>
+    <span class="Clet">let</span> s <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>make n <span class="Cstring">'0'</span> <span class="Cin">in</span>
+    <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> n <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+      <span class="Cif">if</span> unsafe_get v i <span class="Cthen">then</span> s<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">[</span><span class="Cif">if</span> <span class="Cconstructor">I</span><span class="Cnonalphakeyword">.</span>least_first <span class="Cthen">then</span> i <span class="Celse">else</span> n-1<span class="Cnonalphakeyword">-</span>i<span class="Cnonalphakeyword">]</span> <span class="Cnonalphakeyword">&lt;-</span> <span class="Cstring">'1'</span>
+    <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+    s
+
+  <span class="Clet">let</span> print fmt v <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Format</span><span class="Cnonalphakeyword">.</span>pp_print_string fmt <span class="Cnonalphakeyword">(</span>to_string v<span class="Cnonalphakeyword">)</span>
+
+  <span class="Clet">let</span> of_string s <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>length s <span class="Cin">in</span>
+    <span class="Clet">let</span> v <span class="Cnonalphakeyword">=</span> create n <span class="Cfalse">false</span> <span class="Cin">in</span>
+    <span class="Cfor">for</span> i <span class="Cnonalphakeyword">=</span> 0 <span class="Cto">to</span> n <span class="Cnonalphakeyword">-</span> 1 <span class="Cdo">do</span>
+      <span class="Clet">let</span> c <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">String</span><span class="Cnonalphakeyword">.</span>unsafe_get s i <span class="Cin">in</span>
+      <span class="Cif">if</span> c <span class="Cnonalphakeyword">=</span> <span class="Cstring">'1'</span> <span class="Cthen">then</span>
+        unsafe_set v <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> <span class="Cconstructor">I</span><span class="Cnonalphakeyword">.</span>least_first <span class="Cthen">then</span> i <span class="Celse">else</span> n-1<span class="Cnonalphakeyword">-</span>i<span class="Cnonalphakeyword">)</span> <span class="Ctrue">true</span>
+      <span class="Celse">else</span>
+        <span class="Cif">if</span> c &lt;&gt; <span class="Cstring">'0'</span> <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.of_string"</span>
+    <span class="Cdone">done</span><span class="Cnonalphakeyword">;</span>
+    v
+
+<span class="Cend">end</span>
+<span class="Cmodule">module</span> <span class="Cconstructor">L</span> <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">S</span><span class="Cnonalphakeyword">(</span><span class="Cstruct">struct</span> <span class="Clet">let</span> least_first <span class="Cnonalphakeyword">=</span> <span class="Ctrue">true</span> <span class="Cend">end</span><span class="Cnonalphakeyword">)</span>
+<span class="Cmodule">module</span> <span class="Cconstructor">M</span> <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">S</span><span class="Cnonalphakeyword">(</span><span class="Cstruct">struct</span> <span class="Clet">let</span> least_first <span class="Cnonalphakeyword">=</span> <span class="Cfalse">false</span> <span class="Cend">end</span><span class="Cnonalphakeyword">)</span>
+
+<span class="Ccomment">(*s Input/output in a machine-independent format. *)</span>
+
+<span class="Clet">let</span> output_bin out_ch v <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> len <span class="Cnonalphakeyword">=</span> length v <span class="Cin">in</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> loop i pow byte <span class="Cnonalphakeyword">=</span>
+    <span class="Clet">let</span> byte <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> unsafe_get v i <span class="Cthen">then</span> byte <span class="Clor">lor</span> pow <span class="Celse">else</span> byte <span class="Cin">in</span>
+    <span class="Cif">if</span> i <span class="Cnonalphakeyword">=</span> len <span class="Cnonalphakeyword">-</span> 1 <span class="Cthen">then</span>
+      output_byte out_ch byte
+    <span class="Celse">else</span> <span class="Cif">if</span> i <span class="Cmod">mod</span> 8 <span class="Cnonalphakeyword">=</span> 7 <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+      output_byte out_ch byte<span class="Cnonalphakeyword">;</span>
+      loop <span class="Cnonalphakeyword">(</span>i <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">)</span> 1 0
+    <span class="Cend">end</span> <span class="Celse">else</span>
+      loop <span class="Cnonalphakeyword">(</span>i <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>pow <span class="Cnonalphakeyword">*</span> 2<span class="Cnonalphakeyword">)</span> byte
+  <span class="Cin">in</span>
+  output_binary_int out_ch len<span class="Cnonalphakeyword">;</span>
+  <span class="Cif">if</span> len <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span> loop 0 1 0
+
+<span class="Clet">let</span> input_bin in_ch <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> len <span class="Cnonalphakeyword">=</span> input_binary_int in_ch <span class="Cin">in</span>
+  <span class="Clet">let</span> bits <span class="Cnonalphakeyword">=</span> create len <span class="Cfalse">false</span> <span class="Cin">in</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> loop i byte <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> i <span class="Cnonalphakeyword">&lt;</span> len <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+      <span class="Clet">let</span> byte <span class="Cnonalphakeyword">=</span> <span class="Cif">if</span> i <span class="Cmod">mod</span> 8 <span class="Cnonalphakeyword">=</span> 0 <span class="Cthen">then</span> input_byte in_ch <span class="Celse">else</span> byte <span class="Cin">in</span>
+      <span class="Cif">if</span> byte <span class="Cland">land</span> 1 <span class="Cnonalphakeyword">=</span> 1 <span class="Cthen">then</span> unsafe_set bits i <span class="Ctrue">true</span><span class="Cnonalphakeyword">;</span>
+      loop <span class="Cnonalphakeyword">(</span>i<span class="Cnonalphakeyword">+</span>1<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span>byte / 2<span class="Cnonalphakeyword">)</span>
+    <span class="Cend">end</span>
+  <span class="Cin">in</span>
+  <span class="Cif">if</span> len <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span> loop 0 0<span class="Cnonalphakeyword">;</span>
+  bits
+
+<span class="Ccomment">(*s Iteration on all bit vectors of length [n] using a Gray code. *)</span>
+
+<span class="Clet">let</span> first_set v n <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> lookup i <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> i <span class="Cnonalphakeyword">=</span> n <span class="Cthen">then</span> raise <span class="Cconstructor">Not_found</span> <span class="Cnonalphakeyword">;</span>
+    <span class="Cif">if</span> unsafe_get v i <span class="Cthen">then</span> i <span class="Celse">else</span> lookup <span class="Cnonalphakeyword">(</span>i <span class="Cnonalphakeyword">+</span> 1<span class="Cnonalphakeyword">)</span>
+  <span class="Cin">in</span>
+  lookup 0
+
+<span class="Clet">let</span> gray_iter f n <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> bv <span class="Cnonalphakeyword">=</span> create n <span class="Cfalse">false</span> <span class="Cin">in</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> iter <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">=</span>
+    f bv<span class="Cnonalphakeyword">;</span>
+    unsafe_set bv 0 <span class="Cnonalphakeyword">(</span>not <span class="Cnonalphakeyword">(</span>unsafe_get bv 0<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+    f bv<span class="Cnonalphakeyword">;</span>
+    <span class="Clet">let</span> pos <span class="Cnonalphakeyword">=</span> succ <span class="Cnonalphakeyword">(</span>first_set bv n<span class="Cnonalphakeyword">)</span> <span class="Cin">in</span>
+    <span class="Cif">if</span> pos <span class="Cnonalphakeyword">&lt;</span> n <span class="Cthen">then</span> <span class="Cbegin">begin</span>
+      unsafe_set bv pos <span class="Cnonalphakeyword">(</span>not <span class="Cnonalphakeyword">(</span>unsafe_get bv pos<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+      iter <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span>
+    <span class="Cend">end</span>
+  <span class="Cin">in</span>
+  <span class="Cif">if</span> n <span class="Cnonalphakeyword">&gt;</span> 0 <span class="Cthen">then</span> iter <span class="Cnonalphakeyword">(</span><span class="Cnonalphakeyword">)</span>
+
+
+<span class="Ccomment">(*s Coercions to/from lists of integers *)</span>
+
+<span class="Clet">let</span> of_list l <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">List</span><span class="Cnonalphakeyword">.</span>fold_left max 0 l <span class="Cin">in</span>
+  <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> create <span class="Cnonalphakeyword">(</span>succ n<span class="Cnonalphakeyword">)</span> <span class="Cfalse">false</span> <span class="Cin">in</span>
+  <span class="Clet">let</span> add_element i <span class="Cnonalphakeyword">=</span>
+    <span class="Ccomment">(* negative numbers are invalid *)</span>
+    <span class="Cif">if</span> i <span class="Cnonalphakeyword">&lt;</span> 0 <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.of_list"</span><span class="Cnonalphakeyword">;</span>
+    unsafe_set b i <span class="Ctrue">true</span>
+  <span class="Cin">in</span>
+  <span class="Cconstructor">List</span><span class="Cnonalphakeyword">.</span>iter add_element l<span class="Cnonalphakeyword">;</span>
+  b
+
+<span class="Clet">let</span> of_list_with_length l len <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> b <span class="Cnonalphakeyword">=</span> create len <span class="Cfalse">false</span> <span class="Cin">in</span>
+  <span class="Clet">let</span> add_element i <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> i <span class="Cnonalphakeyword">&lt;</span> 0 || i &gt;= len <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.of_list_with_length"</span><span class="Cnonalphakeyword">;</span>
+    unsafe_set b i <span class="Ctrue">true</span>
+  <span class="Cin">in</span>
+  <span class="Cconstructor">List</span><span class="Cnonalphakeyword">.</span>iter add_element l<span class="Cnonalphakeyword">;</span>
+  b
+
+<span class="Clet">let</span> to_list b <span class="Cnonalphakeyword">=</span>
+  <span class="Clet">let</span> n <span class="Cnonalphakeyword">=</span> length b <span class="Cin">in</span>
+  <span class="Clet">let</span> <span class="Crec">rec</span> make i acc <span class="Cnonalphakeyword">=</span>
+    <span class="Cif">if</span> i <span class="Cnonalphakeyword">&lt;</span> 0 <span class="Cthen">then</span> acc
+    <span class="Celse">else</span> make <span class="Cnonalphakeyword">(</span>pred i<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">(</span><span class="Cif">if</span> unsafe_get b i <span class="Cthen">then</span> i <span class="Cnonalphakeyword">::</span> acc <span class="Celse">else</span> acc<span class="Cnonalphakeyword">)</span>
+  <span class="Cin">in</span>
+  make <span class="Cnonalphakeyword">(</span>pred n<span class="Cnonalphakeyword">)</span> <span class="Cnonalphakeyword">[</span><span class="Cnonalphakeyword">]</span>
+
+
+<span class="Ccomment">(*s To/from integers. *)</span>
+
+<span class="Ccomment">(* [int] *)</span>
+<span class="Clet">let</span> of_int_us i <span class="Cnonalphakeyword">=</span>
+  <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> bpi<span class="Cnonalphakeyword">;</span> bits <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">[|</span> i <span class="Cland">land</span> max_int <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">}</span>
+<span class="Clet">let</span> to_int_us v <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">&lt;</span> bpi <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.to_int_us"</span><span class="Cnonalphakeyword">;</span>
+  v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>0<span class="Cnonalphakeyword">)</span>
+
+<span class="Clet">let</span> of_int_s i <span class="Cnonalphakeyword">=</span>
+  <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> succ bpi<span class="Cnonalphakeyword">;</span> bits <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">[|</span> i <span class="Cland">land</span> max_int<span class="Cnonalphakeyword">;</span> <span class="Cnonalphakeyword">(</span>i <span class="Clsr">lsr</span> bpi<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 1 <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">}</span>
+<span class="Clet">let</span> to_int_s v <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">&lt;</span> succ bpi <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.to_int_s"</span><span class="Cnonalphakeyword">;</span>
+  v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>0<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span> <span class="Cnonalphakeyword">(</span>v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>1<span class="Cnonalphakeyword">)</span> <span class="Clsl">lsl</span> bpi<span class="Cnonalphakeyword">)</span>
+
+<span class="Ccomment">(* [Int32] *)</span>
+<span class="Clet">let</span> of_int32_us i <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+  <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> 31<span class="Cnonalphakeyword">;</span>
+            bits <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>to_int i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> max_int<span class="Cnonalphakeyword">;</span>
+                      <span class="Clet">let</span> hi <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>shift_right_logical i 30 <span class="Cin">in</span>
+                      <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>to_int hi<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 1 <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">}</span>
+  <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> 31<span class="Cnonalphakeyword">;</span> bits <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>to_int i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 0x7fffffff <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">}</span>
+  <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+<span class="Clet">let</span> to_int32_us v <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">&lt;</span> 31 <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.to_int32_us"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+    <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span>
+        <span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>logor <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>of_int v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>0<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+                    <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>shift_left <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>of_int <span class="Cnonalphakeyword">(</span>v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>1<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> 30<span class="Cnonalphakeyword">)</span>
+    <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span>
+        <span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>of_int <span class="Cnonalphakeyword">(</span>v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>0<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 0x7fffffff<span class="Cnonalphakeyword">)</span>
+    <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+
+<span class="Ccomment">(* this is 0xffffffff (ocaml &gt;= 3.08 checks for literal overflow) *)</span>
+<span class="Clet">let</span> ffffffff <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">(</span>0xffff <span class="Clsl">lsl</span> 16<span class="Cnonalphakeyword">)</span> <span class="Clor">lor</span> 0xffff
+
+<span class="Clet">let</span> of_int32_s i <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+  <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> 32<span class="Cnonalphakeyword">;</span>
+            bits <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>to_int i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> max_int<span class="Cnonalphakeyword">;</span>
+                      <span class="Clet">let</span> hi <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>shift_right_logical i 30 <span class="Cin">in</span>
+                      <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>to_int hi<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 3 <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">}</span>
+  <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> 32<span class="Cnonalphakeyword">;</span> bits <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>to_int i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> ffffffff <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">}</span>
+  <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+<span class="Clet">let</span> to_int32_s v <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">&lt;</span> 32 <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.to_int32_s"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+    <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span>
+        <span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>logor <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>of_int v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>0<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+                    <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>shift_left <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>of_int <span class="Cnonalphakeyword">(</span>v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>1<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 3<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> 30<span class="Cnonalphakeyword">)</span>
+    <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span>
+        <span class="Cconstructor">Int32</span><span class="Cnonalphakeyword">.</span>of_int <span class="Cnonalphakeyword">(</span>v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>0<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> ffffffff<span class="Cnonalphakeyword">)</span>
+    <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+
+<span class="Ccomment">(* [Int64] *)</span>
+<span class="Clet">let</span> of_int64_us i <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+  <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> 63<span class="Cnonalphakeyword">;</span>
+            bits <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>to_int i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> max_int<span class="Cnonalphakeyword">;</span>
+                      <span class="Cnonalphakeyword">(</span><span class="Clet">let</span> mi <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_right_logical i 30 <span class="Cin">in</span>
+                       <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>to_int mi<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> max_int<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+                      <span class="Clet">let</span> hi <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_right_logical i 60 <span class="Cin">in</span>
+                      <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>to_int hi<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 7 <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">}</span>
+  <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> 63<span class="Cnonalphakeyword">;</span>
+            bits <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>to_int i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> max_int<span class="Cnonalphakeyword">;</span>
+                      <span class="Clet">let</span> hi <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_right_logical i 62 <span class="Cin">in</span>
+                      <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>to_int hi<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 1 <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">}</span>
+  <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+<span class="Clet">let</span> to_int64_us v <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">&lt;</span> 63 <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.to_int64_us"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+    <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span>
+        <span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>logor <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>of_int v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>0<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+        <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>logor <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_left <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>of_int v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> 30<span class="Cnonalphakeyword">)</span>
+                     <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_left <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>of_int <span class="Cnonalphakeyword">(</span>v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>2<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 7<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> 60<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+    <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span>
+        <span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>logor <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>of_int v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>0<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+                    <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_left <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>of_int <span class="Cnonalphakeyword">(</span>v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>1<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> 62<span class="Cnonalphakeyword">)</span>
+    <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span>
+        <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+
+<span class="Clet">let</span> of_int64_s i <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+  <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> 64<span class="Cnonalphakeyword">;</span>
+            bits <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>to_int i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> max_int<span class="Cnonalphakeyword">;</span>
+                      <span class="Cnonalphakeyword">(</span><span class="Clet">let</span> mi <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_right_logical i 30 <span class="Cin">in</span>
+                       <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>to_int mi<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> max_int<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">;</span>
+                      <span class="Clet">let</span> hi <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_right_logical i 60 <span class="Cin">in</span>
+                      <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>to_int hi<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 15 <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">}</span>
+  <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">{</span> length <span class="Cnonalphakeyword">=</span> 64<span class="Cnonalphakeyword">;</span>
+            bits <span class="Cnonalphakeyword">=</span> <span class="Cnonalphakeyword">[|</span> <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>to_int i<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> max_int<span class="Cnonalphakeyword">;</span>
+                      <span class="Clet">let</span> hi <span class="Cnonalphakeyword">=</span> <span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_right_logical i 62 <span class="Cin">in</span>
+                      <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>to_int hi<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 3 <span class="Cnonalphakeyword">|]</span> <span class="Cnonalphakeyword">}</span>
+  <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+<span class="Clet">let</span> to_int64_s v <span class="Cnonalphakeyword">=</span>
+  <span class="Cif">if</span> v<span class="Cnonalphakeyword">.</span>length <span class="Cnonalphakeyword">&lt;</span> 64 <span class="Cthen">then</span> invalid_arg <span class="Cstring">"Bitv.to_int64_s"</span><span class="Cnonalphakeyword">;</span>
+  <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+    <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span>
+        <span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>logor <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>of_int v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>0<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+        <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>logor <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_left <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>of_int v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>1<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> 30<span class="Cnonalphakeyword">)</span>
+                     <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_left <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>of_int <span class="Cnonalphakeyword">(</span>v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>2<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 15<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> 60<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+    <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span>
+        <span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>logor <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>of_int v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>0<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+                    <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>shift_left <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>of_int <span class="Cnonalphakeyword">(</span>v<span class="Cnonalphakeyword">.</span>bits<span class="Cnonalphakeyword">.</span><span class="Cnonalphakeyword">(</span>1<span class="Cnonalphakeyword">)</span> <span class="Cland">land</span> 3<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span> 62<span class="Cnonalphakeyword">)</span>
+    <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+
+<span class="Ccomment">(* [Nativeint] *)</span>
+<span class="Clet">let</span> select_of f32 f64 <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+  <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> i <span class="Cnonalphakeyword">-&gt;</span> f32 <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Nativeint</span><span class="Cnonalphakeyword">.</span>to_int32 i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> i <span class="Cnonalphakeyword">-&gt;</span> f64 <span class="Cnonalphakeyword">(</span><span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>of_nativeint i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+<span class="Clet">let</span> of_nativeint_s <span class="Cnonalphakeyword">=</span> select_of of_int32_s of_int64_s
+<span class="Clet">let</span> of_nativeint_us <span class="Cnonalphakeyword">=</span> select_of of_int32_us of_int64_us
+<span class="Clet">let</span> select_to f32 f64 <span class="Cnonalphakeyword">=</span> <span class="Cmatch">match</span> <span class="Cconstructor">Sys</span><span class="Cnonalphakeyword">.</span>word_size <span class="Cwith">with</span>
+  <span class="Cbar">|</span> 32 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> i <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">Nativeint</span><span class="Cnonalphakeyword">.</span>of_int32 <span class="Cnonalphakeyword">(</span>f32 i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Cbar">|</span> 64 <span class="Cnonalphakeyword">-&gt;</span> <span class="Cnonalphakeyword">(</span><span class="Cfun">fun</span> i <span class="Cnonalphakeyword">-&gt;</span> <span class="Cconstructor">Int64</span><span class="Cnonalphakeyword">.</span>to_nativeint <span class="Cnonalphakeyword">(</span>f64 i<span class="Cnonalphakeyword">)</span><span class="Cnonalphakeyword">)</span>
+  <span class="Cbar">|</span> <span class="Cnonalphakeyword">_</span> <span class="Cnonalphakeyword">-&gt;</span> <span class="Cassert">assert</span> <span class="Cfalse">false</span>
+<span class="Clet">let</span> to_nativeint_s <span class="Cnonalphakeyword">=</span> select_to to_int32_s to_int64_s
+<span class="Clet">let</span> to_nativeint_us <span class="Cnonalphakeyword">=</span> select_to to_int32_us to_int64_us
+
+
+</pre>
+
+<hr>
+<p>
+<em>This document was generated using 
+<a href="http://martin.jambon.free.fr/caml2html.html">caml2html</a></em>
+</body>
+</html>
